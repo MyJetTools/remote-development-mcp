@@ -1,0 +1,35 @@
+[package]
+name = "remote-development-mcp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mcp-server-middleware = { tag = "0.9.0", git = "https://github.com/my-ai-utils/mcp-server-middleware.git" }
+
+my-http-server = { tag = "0.9.0", git = "https://github.com/MyJetTools/my-http-server.git" }
+
+my-ai-agent = { tag = "0.1.0", git = "https://github.com/my-ai-utils/my-ai-agent.git", features = [
+    "agent",
+] }
+
+my-settings-reader = { tag = "0.5.0", git = "https://github.com/MyJetTools/my-settings-reader.git" }
+
+my-logger = { tag = "1.3.0", git = "https://github.com/MyJetTools/my-logger.git" }
+
+rust-extensions = { tag = "0.1.5", git = "https://github.com/MyJetTools/rust-extensions.git", features = [
+    "with-tokio",
+] }
+
+tokio = { version = "*", features = ["full"] }
+
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+
+async-trait = "*"
+
+# Needed to signal a whole process group: killing a `cargo` job has to take its
+# `rustc` children with it, which `Child::kill` alone does not do.
+libc = "*"
+
+parking_lot = "*"
+ahash = "*"

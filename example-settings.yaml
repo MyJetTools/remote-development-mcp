@@ -1,0 +1,64 @@
+# Copy to ~/.remote-development-mcp
+#
+# Read once at startup. Change anything here and restart the server.
+
+# Keep this on the loopback interface. Publish it with cloudflared or tailscale
+# instead of opening the port — the token is the only thing between this and a
+# shell on the machine.
+bind_addr: 127.0.0.1:8123
+
+# Bearer token every request must carry: `Authorization: Bearer <token>`.
+auth_token: "generate-a-long-random-string"
+
+# Default policy, overridable per repository below.
+# allowlist  — only the binaries listed may be started
+# passthrough — any binary may be started, still confined to the repository root
+command_mode: allowlist
+
+# Kept small on purpose. Excluded from the default:
+#   - sh/bash — a shell here is passthrough in one step
+#   - cat/ls/mkdir/mv — their arguments are not path-confined, so they could read
+#     or write outside the repo; the read_file/list_dir/write_file/move_path
+#     tools cover them and stay inside the root
+#   - rustup — `rustup run` executes any binary
+# Add more here if you need them, or use command_mode: passthrough.
+command_allowlist:
+  - cargo
+  - rustc
+  - git
+  - rg
+
+# Per repository, per repository — a repo can occupy all of its own slots
+# without affecting the others.
+max_concurrent_jobs: 4
+
+# Applied to jobs that do not ask for a timeout of their own.
+default_timeout_sec: 3600
+
+# Per-stream cap on one job's log. Past it the job keeps running, but its log
+# stops growing and is marked as truncated.
+max_log_bytes: 16777216
+
+logs_path: ~/.remote-development-mcp-logs
+
+# The audit journal is off by default. Set a path to turn it on — every command
+# start, finish and refusal is then appended as one JSON line.
+# audit_log_path: ~/.remote-development-mcp-audit.log
+
+# One MCP endpoint per repository. Connect a client to
+# https://<your-tunnel>/<mcp_path> and it gets tools bound to that repository
+# and nothing else.
+repos:
+  - mcp_path: /remote-development-mcp
+    root: ~/RustProjects/my-jet-tools/remote-development-mcp
+    description: "The MCP server itself."
+
+  - mcp_path: /my-ssh
+    root: ~/RustProjects/my-jet-tools/my-ssh
+
+  # A repository can loosen or tighten the defaults on its own.
+  - mcp_path: /scratch
+    root: ~/RustProjects/scratch
+    description: "Throwaway experiments."
+    command_mode: passthrough
+    allow_delete: true
