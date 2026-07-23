@@ -33,6 +33,14 @@ rust-extensions = { tag = "0.1.5", git = "https://github.com/MyJetTools/rust-ext
     "with-tokio",
 ] }
 
+# Only for turning the iso2 country code a proxy reports into the iso3 the flag
+# assets are named by. `default-features = false` on purpose: the default
+# `time-zones` feature drags in chrono and chrono-tz, and nothing here tells the
+# time.
+rust-common = { tag = "0.1.1", git = "https://github.com/MyJetTools/rust-common.git", default-features = false, features = [
+    "country-code",
+] }
+
 tokio = { version = "*", features = ["full"] }
 
 serde = { version = "*", features = ["derive"] }

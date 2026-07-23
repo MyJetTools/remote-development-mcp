@@ -24,8 +24,14 @@ pub struct SessionInfo {
     pub endpoint: String,
     /// Real client IP, already resolved through `X-Forwarded-For`.
     pub ip: String,
-    /// Whatever the proxy in front reported, when it reports anything.
+    /// Whatever the proxy in front reported, when it reports anything. Kept
+    /// verbatim — it is the label, and an unrecognised value is still the truth
+    /// about what arrived.
     pub country: Option<String>,
+    /// The same country as iso3, resolved at connect time because that is how
+    /// the flag assets are named. `None` when the header parsed as no country,
+    /// which is also what stops an unvalidated header reaching a URL.
+    pub country_iso3: Option<String>,
     /// `claude-code 0.5.0`, from the `clientInfo` of `initialize`. Absent when
     /// the session was adopted from an id the server never issued — there is no
     /// `initialize` on that path to carry a name.

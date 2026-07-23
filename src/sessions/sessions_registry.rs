@@ -125,6 +125,7 @@ mod tests {
             endpoint: endpoint.to_string(),
             ip: "10.0.0.1".to_string(),
             country: Some("DE".to_string()),
+            country_iso3: Some("DEU".to_string()),
             client: Some("claude-code".to_string()),
             connected_at: DateTimeAsMicroseconds::now(),
         }

@@ -3,6 +3,14 @@ use rest_api_shared::SessionModel;
 
 use super::render_duration;
 
+/// Flags are fetched from here rather than bundled: they are one file per
+/// country and the console would carry every one of them to show the two or
+/// three that ever appear. The cost is that a console with no route to github
+/// falls back to the plain country code — which is why the code is also the
+/// image's `alt`.
+const FLAGS_BASE_URL: &str =
+    "https://raw.githubusercontent.com/MyJetTools/public-assets/refs/heads/main/flags";
+
 #[component]
 pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
     rsx! {
@@ -32,6 +40,14 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                         for session in sessions {
                             {
                                 let country = session.country.clone().unwrap_or_else(|| "—".to_string());
+                                // Named by iso3, which the server resolved from
+                                // whatever the proxy reported. Absent when it
+                                // parsed as no country, and then the code alone
+                                // is shown rather than a broken image.
+                                let flag = session
+                                    .country_iso3
+                                    .as_ref()
+                                    .map(|iso3| format!("{FLAGS_BASE_URL}/{iso3}.svg"));
                                 let client = session.client.clone().unwrap_or_else(|| "—".to_string());
                                 let connected = render_duration(session.age_sec);
                                 // Read live from the middleware on every poll, so
@@ -42,7 +58,24 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
 
                                 rsx! {
                                     tr { key: "{session.endpoint}/{session.session_id}",
-                                        td { class: "nowrap", "{country}" }
+                                        td { class: "nowrap",
+                                            if let Some(flag) = flag {
+                                                img {
+                                                    class: "flag",
+                                                    src: "{flag}",
+                                                    // The code stays reachable on
+                                                    // hover, and is what is read
+                                                    // out if the image does not
+                                                    // load — the console is
+                                                    // useful without the network
+                                                    // reaching github.
+                                                    alt: "{country}",
+                                                    title: "{country}",
+                                                }
+                                            } else {
+                                                "{country}"
+                                            }
+                                        }
                                         td { class: "nowrap", "{session.ip}" }
                                         td { class: "truncate", "{client}" }
                                         td { class: "dim nowrap", "{session.protocol_version}" }

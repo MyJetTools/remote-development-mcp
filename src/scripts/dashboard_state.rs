@@ -132,6 +132,7 @@ fn read_sessions(app: &Arc<AppContext>, now: DateTimeAsMicroseconds) -> Vec<Sess
                     .map(|known| known.ip.clone())
                     .unwrap_or_default(),
                 country: known.as_ref().and_then(|known| known.country.clone()),
+                country_iso3: known.as_ref().and_then(|known| known.country_iso3.clone()),
                 client: known.as_ref().and_then(|known| known.client.clone()),
                 protocol_version: session.version.clone(),
                 connected_at: session.create.to_rfc3339(),

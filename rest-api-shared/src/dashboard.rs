@@ -64,7 +64,13 @@ pub struct SessionModel {
     /// a project — one session can reach every project that endpoint exposes.
     pub endpoint: String,
     pub ip: String,
+    /// Exactly what the proxy reported, normally iso2. Kept as the label, since
+    /// it is what is true rather than what was recognised.
     pub country: Option<String>,
+    /// The same country as iso3, which is how the flag assets are named. Absent
+    /// when the reported code parsed as no country at all — the row still
+    /// renders, just without a flag.
+    pub country_iso3: Option<String>,
     pub client: Option<String>,
     pub protocol_version: String,
     pub connected_at: String,

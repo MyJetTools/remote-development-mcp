@@ -43,11 +43,17 @@ impl McpConnectionInfo for SessionObserver {
             Err(_) => None,
         };
 
+        // Resolved once here rather than on every poll: the console asks for the
+        // dashboard several times a minute, and `as_iso3_str` walks the whole
+        // country table on each call.
+        let country_iso3 = country.as_deref().and_then(to_iso3);
+
         self.registry.connected(SessionInfo {
             session_id: clamp_field(&session.id),
             endpoint: self.endpoint.clone(),
             ip: clamp_field(&ip),
             country,
+            country_iso3,
             client,
             connected_at: DateTimeAsMicroseconds::now(),
         });
@@ -56,6 +62,22 @@ impl McpConnectionInfo for SessionObserver {
     async fn on_disconnected(&self, session: &McpSession) {
         self.registry
             .disconnected(&self.endpoint, &clamp_field(&session.id));
+    }
+}
+
+/// The reported code as iso3, which is how the flag assets are named.
+///
+/// `CountryCode::parse` takes iso2 or iso3, so a proxy sending either is
+/// handled — and anything it does not recognise comes back `None` rather than
+/// being passed through, since the value is about to become part of a URL. The
+/// header is client-adjacent and unvalidated; this is what keeps it from
+/// choosing what the console fetches.
+fn to_iso3(country: &str) -> Option<String> {
+    let country = country.trim().to_uppercase();
+
+    match rust_common::country_code::CountryCode::parse(&country) {
+        Ok(country) => Some(country.as_iso3_str().to_string()),
+        Err(_) => None,
     }
 }
 
@@ -104,6 +126,31 @@ fn read_client(body: &[u8]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_iso2_country_becomes_the_iso3_the_flag_is_named_by() {
+        assert_eq!(to_iso3("DE").unwrap(), "DEU");
+        assert_eq!(to_iso3("US").unwrap(), "USA");
+        assert_eq!(to_iso3("AF").unwrap(), "AFG");
+
+        // Cloudflare sends uppercase, but nothing guarantees the next proxy does.
+        assert_eq!(to_iso3("de").unwrap(), "DEU");
+        assert_eq!(to_iso3(" de ").unwrap(), "DEU");
+
+        // Already iso3 is passed through rather than rejected.
+        assert_eq!(to_iso3("DEU").unwrap(), "DEU");
+    }
+
+    #[test]
+    fn an_unrecognised_country_yields_no_flag_rather_than_a_url() {
+        // The header is unvalidated and this value ends up in a URL the console
+        // fetches, so anything that is not a country has to stop here.
+        assert!(to_iso3("ZZ").is_none());
+        assert!(to_iso3("XX").is_none());
+        assert!(to_iso3("").is_none());
+        assert!(to_iso3("../../etc/passwd").is_none());
+        assert!(to_iso3("T1").is_none());
+    }
 
     fn initialize_body(client_info: &str) -> String {
         format!(
