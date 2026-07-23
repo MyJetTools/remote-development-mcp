@@ -43,6 +43,11 @@ max_log_bytes: 16777216
 
 logs_path: ~/.remote-development-mcp-logs
 
+# Token for the create_release tool (GitHub REST API). Without it that tool
+# refuses; everything else works regardless. Needs `contents: write` on the
+# repositories being released.
+# github_token: "ghp_..."
+
 # The audit journal is off by default. Set a path to turn it on — every command
 # start, finish and refusal is then appended as one JSON line.
 # audit_log_path: ~/.remote-development-mcp-audit.log

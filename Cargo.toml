@@ -45,3 +45,7 @@ regex = "*"
 # a terminal — under launchd or a pipe the server logs plain lines instead.
 ratatui = "*"
 crossterm = "*"
+
+# GitHub REST API. Same pin my-settings-reader carries, so there is one copy of
+# flurl in the graph.
+flurl = { tag = "0.7.0", git = "https://github.com/MyJetTools/fl-url.git" }

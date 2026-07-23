@@ -42,6 +42,9 @@ pub struct RepoContext {
     pub default_timeout_sec: u64,
     pub max_log_bytes: u64,
     pub allow_delete: bool,
+    /// Token for the GitHub REST API, from the settings. `None` disables
+    /// `create_release`.
+    pub github_token: Option<String>,
 }
 
 impl RepoContext {
@@ -114,6 +117,7 @@ impl RepoContext {
             default_timeout_sec: settings.default_timeout_sec,
             max_log_bytes: settings.max_log_bytes,
             allow_delete: repo.allow_delete,
+            github_token: settings.github_token.clone(),
         })
     }
 
@@ -326,6 +330,7 @@ mod tests {
             max_log_bytes: 1024,
             logs_path: base.join("logs").to_string_lossy().to_string(),
             audit_log_path: None,
+            github_token: None,
         };
 
         let repo_settings = RepoSettings {

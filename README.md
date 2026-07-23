@@ -38,10 +38,18 @@ crates, so a client can build one crate instead of the whole monorepo.
 respects the command allowlist, takes no caller environment, and for a long
 clone or fetch you'd use `run_command` so it becomes a job you can poll.
 
-**Navigating** — `search` (ripgrep), `list_dir`, `read_file`.
+**Navigating** — `search` (ripgrep semantics, in-process), `list_dir`, `read_file`.
 
 **Changing** — `write_file`, `edit_file`, `apply_patch`, `move_path`,
 `delete_path`.
+
+**Releasing** — `create_release`: creates the service's GitHub release, which
+creates the tag and triggers the build. Leave `version` empty and it releases the
+**next** one — it reads the tags already on GitHub, takes the highest for that
+service and raises the last number. `dry_run` answers "which version would that
+be?" without publishing. Tag naming follows the house guide: `{service}-{version}`
+in a monorepo, the bare version in a single-service repo. Talks to the REST API
+directly with `github_token`, so no `gh` CLI is needed on the machine.
 
 **Maintenance** — `clean_cargo_targets`: reclaims disk by removing every cargo
 `target` directory in the repository. Built for a monorepo of separate crates
@@ -85,8 +93,10 @@ Settings are read once at startup; restart to pick up changes. A bad repository
 root or a duplicated `mcp_path` stops the server coming up
 rather than turning into an endpoint that fails every call.
 
-`git` and `rg` need to be installed — `apply_patch`, `search`, `list_dir`'s
-gitignore filtering and `repo_info` shell out to them.
+`git` needs to be installed — `apply_patch`, `list_dir`'s gitignore filtering,
+`repo_info` and the `git` tool shell out to it. `search` does **not** need
+ripgrep: it uses ripgrep's libraries in-process. `create_release` needs no `gh`
+CLI either, only `github_token` in the settings.
 
 ## What is actually guaranteed
 

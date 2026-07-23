@@ -5,10 +5,10 @@ use mcp_server_middleware::McpMiddleware;
 use crate::repo::RepoContext;
 
 use super::{
-    ApplyPatchHandler, CleanCargoTargetsHandler, DeletePathHandler, EditFileHandler,
-    GetJobOutputHandler, GitHandler, KillJobHandler, ListDirHandler, ListJobsHandler, LoggedTool,
-    MovePathHandler, ReadFileHandler, RepoInfoHandler, RunCommandHandler, SearchHandler,
-    WriteFileHandler,
+    ApplyPatchHandler, CleanCargoTargetsHandler, CreateReleaseHandler, DeletePathHandler,
+    EditFileHandler, GetJobOutputHandler, GitHandler, KillJobHandler, ListDirHandler,
+    ListJobsHandler, LoggedTool, MovePathHandler, ReadFileHandler, RepoInfoHandler,
+    RunCommandHandler, SearchHandler, WriteFileHandler,
 };
 
 /// Wires this repository's tools into its own MCP endpoint.
@@ -43,6 +43,9 @@ pub fn register_tools(mcp: &mut McpMiddleware, repo: &Arc<RepoContext>) {
     register(mcp, repo, ApplyPatchHandler::new(repo.clone()));
     register(mcp, repo, MovePathHandler::new(repo.clone()));
     register(mcp, repo, DeletePathHandler::new(repo.clone()));
+
+    // Releasing.
+    register(mcp, repo, CreateReleaseHandler::new(repo.clone()));
 
     // Maintenance.
     register(mcp, repo, CleanCargoTargetsHandler::new(repo.clone()));

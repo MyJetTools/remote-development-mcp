@@ -2,6 +2,8 @@ mod apply_patch;
 pub use apply_patch::*;
 mod clean_cargo_targets;
 pub use clean_cargo_targets::*;
+mod create_release;
+pub use create_release::*;
 mod delete_path;
 pub use delete_path::*;
 mod edit_file;

@@ -256,6 +256,7 @@ mod tests {
             max_log_bytes: 1024,
             logs_path: base.join("logs").to_string_lossy().to_string(),
             audit_log_path: None,
+            github_token: None,
         };
 
         let repo_settings = RepoSettings {

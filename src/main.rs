@@ -7,6 +7,7 @@ use crate::{activity::ActivityLog, settings::SettingsModel};
 mod activity;
 mod app;
 mod audit;
+mod github;
 mod http;
 mod jobs;
 mod mcp;

@@ -2,6 +2,8 @@ mod apply_patch_tool_call;
 pub use apply_patch_tool_call::*;
 mod clean_cargo_targets_tool_call;
 pub use clean_cargo_targets_tool_call::*;
+mod create_release_tool_call;
+pub use create_release_tool_call::*;
 mod delete_path_tool_call;
 pub use delete_path_tool_call::*;
 mod edit_file_tool_call;

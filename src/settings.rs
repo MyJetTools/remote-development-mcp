@@ -51,6 +51,13 @@ pub struct SettingsModel {
     /// path is set here — set one to turn the journal on.
     #[serde(default)]
     pub audit_log_path: Option<String>,
+
+    /// Token the `create_release` tool authenticates to the GitHub REST API
+    /// with. Without it that tool refuses; everything else works regardless.
+    ///
+    /// Needs `contents: write` on the repositories being released.
+    #[serde(default)]
+    pub github_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
