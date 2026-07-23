@@ -15,7 +15,10 @@ pub struct AppContext {
     pub app_states: Arc<AppStates>,
     pub repos: Vec<Arc<RepoContext>>,
     pub bind_addr: String,
-    pub auth_token: String,
+    /// `None` means the server does not authenticate at all and trusts whatever
+    /// reaches it — the normal setup, where a reverse proxy in front terminates
+    /// authentication.
+    pub auth_token: Option<String>,
 }
 
 impl AppContext {
@@ -24,9 +27,19 @@ impl AppContext {
     /// endpoint should stop the server coming up — not surface later as an
     /// endpoint that fails every call.
     pub async fn new(settings: SettingsModel) -> Result<Self, String> {
-        if settings.auth_token.trim().is_empty() {
-            return Err("auth_token is empty. The server refuses to serve without one".to_string());
-        }
+        // No token configured means no authentication — see the field's note. A
+        // token that is present but blank is a mistake worth catching, though,
+        // since it reads as "protected" while protecting nothing.
+        let auth_token =
+            match settings.auth_token.as_ref() {
+                Some(token) if token.trim().is_empty() => return Err(
+                    "auth_token is present but blank. Remove it to run without authentication, \
+                     or set a real token"
+                        .to_string(),
+                ),
+                Some(token) => Some(token.trim().to_string()),
+                None => None,
+            };
 
         if settings.repos.is_empty() {
             return Err("No repositories are configured, so there is nothing to serve".to_string());
@@ -60,11 +73,11 @@ impl AppContext {
             app_states: Arc::new(AppStates::create_initialized()),
             repos,
             bind_addr: settings.bind_addr.clone(),
-            // Trimmed to match the presented token, which `strip_bearer` trims.
-            // Storing it untrimmed would let a token with stray whitespace pass
-            // startup validation and then reject every request — including one
-            // carrying the byte-exact configured value.
-            auth_token: settings.auth_token.trim().to_string(),
+            // Already trimmed above, to match the presented token — which
+            // `strip_bearer` trims. Storing it untrimmed would let a token with
+            // stray whitespace pass startup validation and then reject every
+            // request, including one carrying the byte-exact configured value.
+            auth_token,
         })
     }
 }

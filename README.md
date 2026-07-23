@@ -15,7 +15,7 @@ from the settings:
 
 ```
 MyHttpServer (bind_addr)
-  ├─ AuthMiddleware              bearer token; registered first, so nothing below sees an unauthenticated request
+  ├─ AuthMiddleware              only when auth_token is set; normally absent — the proxy in front authenticates
   ├─ McpMiddleware "/my-ssh"     tools bound to ~/RustProjects/my-jet-tools/my-ssh
   ├─ McpMiddleware "/ca-api"     tools bound to ~/RustProjects/my-jet-tools/ca-api
   └─ …
@@ -75,15 +75,14 @@ streams without losing or repeating output.
 ## Setup
 
 1. `cp example-settings.yaml ~/.remote-development-mcp` and edit it. At minimum
-   set `auth_token` and list your repositories.
+   list your repositories.
 2. `cargo run --release`
 3. Expose it with a tunnel — `cloudflared tunnel --url http://127.0.0.1:8123` or
    tailscale. Do not open the port directly.
-4. Add `https://<tunnel>/<mcp_path>` as a custom connector, with the bearer
-   token.
+4. Add `https://<host>/<mcp_path>` as a custom connector.
 
 Settings are read once at startup; restart to pick up changes. A bad repository
-root, a duplicated `mcp_path` or an empty token stops the server coming up
+root or a duplicated `mcp_path` stops the server coming up
 rather than turning into an endpoint that fails every call.
 
 `git` and `rg` need to be installed — `apply_patch`, `search`, `list_dir`'s
@@ -91,9 +90,12 @@ gitignore filtering and `repo_info` shell out to them.
 
 ## What is actually guaranteed
 
-Be clear-eyed about the threat model: the client is whoever holds the bearer
-token, and an allowlisted `cargo build` runs `build.rs` — arbitrary code — by
-design. So this is not a sandbox that contains a hostile client. What it does do
+Be clear-eyed about the threat model: **this server does not authenticate**. It
+is meant to run behind a reverse proxy that terminates authentication, and it
+trusts whatever reaches its port — so bind it to loopback and let nothing but
+that proxy talk to it. (`auth_token` exists as a fallback if you ever expose it
+directly.) On top of that, an allowlisted `cargo build` runs `build.rs` —
+arbitrary code — by design. So this is not a sandbox that contains a hostile client. What it does do
 is confine the **file tools**, keep the **command surface** small and honest, and
 record everything.
 

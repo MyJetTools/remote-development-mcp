@@ -312,7 +312,7 @@ mod tests {
 
         let settings = SettingsModel {
             bind_addr: "127.0.0.1:0".to_string(),
-            auth_token: "t".to_string(),
+            auth_token: Some("t".to_string()),
             repos: Vec::new(),
             command_mode: CommandMode::Allowlist,
             command_allowlist: Vec::new(),

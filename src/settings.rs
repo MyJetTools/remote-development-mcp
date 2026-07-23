@@ -11,7 +11,13 @@ pub struct SettingsModel {
     pub bind_addr: String,
 
     /// Bearer token every request must carry.
-    pub auth_token: String,
+    ///
+    /// Optional, and normally left unset: this server is meant to sit behind a
+    /// reverse proxy that terminates authentication, so it trusts whatever
+    /// reaches it. Set a token only when the port is reachable by something
+    /// other than that proxy.
+    #[serde(default)]
+    pub auth_token: Option<String>,
 
     /// Repositories to serve. Each one becomes its own MCP endpoint.
     pub repos: Vec<RepoSettings>,

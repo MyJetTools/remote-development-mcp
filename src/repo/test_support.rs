@@ -42,7 +42,7 @@ pub async fn build_test_repo(name: &str, options: TestRepoOptions) -> Arc<RepoCo
 
     let settings = SettingsModel {
         bind_addr: "127.0.0.1:0".to_string(),
-        auth_token: "test-token".to_string(),
+        auth_token: Some("test-token".to_string()),
         repos: Vec::new(),
         command_mode: options.command_mode,
         command_allowlist: options.command_allowlist,

@@ -2,13 +2,15 @@
 #
 # Read once at startup. Change anything here and restart the server.
 
-# Keep this on the loopback interface. Publish it with cloudflared or tailscale
-# instead of opening the port — the token is the only thing between this and a
-# shell on the machine.
+# Keep this on the loopback interface. This server does not authenticate by
+# default, so the only things that should be able to reach this port are the
+# reverse proxy in front of it and you.
 bind_addr: 127.0.0.1:8123
 
-# Bearer token every request must carry: `Authorization: Bearer <token>`.
-auth_token: "generate-a-long-random-string"
+# Authentication is off by default: this server is meant to sit behind a reverse
+# proxy that terminates auth. Uncomment only if the port is reachable by
+# something other than that proxy.
+# auth_token: "generate-a-long-random-string"
 
 # Default policy, overridable per repository below.
 # allowlist  — only the binaries listed may be started

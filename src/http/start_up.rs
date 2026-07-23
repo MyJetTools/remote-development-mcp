@@ -18,8 +18,13 @@ pub async fn start(app: &Arc<AppContext>) {
 
     let mut http_server = MyHttpServer::new(addr);
 
-    // First, so that nothing below it ever sees an unauthenticated request.
-    http_server.add_middleware(Arc::new(AuthMiddleware::new(app.auth_token.clone())));
+    // Registered first when there is a token, so nothing below it ever sees an
+    // unauthenticated request. With no token the server authenticates nothing
+    // and trusts what reaches it — which is the intended setup behind a reverse
+    // proxy that terminates authentication itself.
+    if let Some(auth_token) = app.auth_token.as_ref() {
+        http_server.add_middleware(Arc::new(AuthMiddleware::new(auth_token.clone())));
+    }
 
     for repo in app.repos.iter() {
         http_server.add_middleware(build_repo_endpoint(repo));
