@@ -6,6 +6,7 @@ use my_http_server::{MyHttpServer, StaticFilesMiddleware};
 use crate::{
     app::{AppContext, APP_NAME, APP_VERSION},
     repo::RepoContext,
+    sessions::{SessionObserver, SessionsRegistry},
 };
 
 use super::{AuthMiddleware, IndexRewriteMiddleware};
@@ -27,7 +28,7 @@ pub async fn start(app: &Arc<AppContext>) {
     }
 
     for repo in app.repos.iter() {
-        http_server.add_middleware(build_repo_endpoint(repo));
+        http_server.add_middleware(build_repo_endpoint(repo, &app.sessions));
     }
 
     // The REST surface the browser console reads.
@@ -54,7 +55,10 @@ pub async fn start(app: &Arc<AppContext>) {
 /// and nothing else, which is what makes the confinement structural: a tool
 /// served at `/my-ssh` holds no reference to any other repository's root, so
 /// there is no `repo` argument to get wrong or to forge.
-fn build_repo_endpoint(repo: &Arc<RepoContext>) -> Arc<McpMiddleware> {
+fn build_repo_endpoint(
+    repo: &Arc<RepoContext>,
+    sessions: &Arc<SessionsRegistry>,
+) -> Arc<McpMiddleware> {
     let mut mcp = McpMiddleware::new(
         repo.mcp_path,
         APP_NAME,
@@ -63,6 +67,14 @@ fn build_repo_endpoint(repo: &Arc<RepoContext>) -> Arc<McpMiddleware> {
     );
 
     crate::mcp::register_tools(&mut mcp, repo);
+
+    // The middleware owns the truth about which sessions exist — it is what
+    // creates them and what sweeps them — so the console reads its events
+    // rather than inferring anything from request traffic.
+    mcp.register_connection_info(Arc::new(SessionObserver::new(
+        repo.name.clone(),
+        sessions.clone(),
+    )));
 
     Arc::new(mcp)
 }

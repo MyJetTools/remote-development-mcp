@@ -2,11 +2,23 @@
     background: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 6px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     overflow: hidden;
 }
 
+/* Claims the leftover height and scrolls inside itself. `min-height: 0` is what
+   lets a flex child shrink past its content instead of pushing the page taller
+   than the viewport. */
+.panel.history {
+    flex: 1 1 55%;
+    min-height: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .panel-head {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 8px;

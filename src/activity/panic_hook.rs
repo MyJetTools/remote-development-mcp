@@ -13,9 +13,10 @@ const FRAMES_SHOWN: usize = 4;
 /// everything else carries on — so without this it would vanish silently and the
 /// only symptom would be a job that never finishes.
 ///
-/// The default report still goes to stderr afterwards: the terminal keeps the
-/// full backtrace, and the browser console gets the one-line version alongside
-/// everything else that happened around it.
+/// The default report still goes to stderr afterwards, and that is the only
+/// thing this server prints once it is up: the terminal keeps the full
+/// backtrace with nothing streaming past it, while the browser console gets the
+/// one-line version in place, alongside whatever was happening around it.
 pub fn install(activity: Arc<ActivityLog>) {
     let previous = std::panic::take_hook();
 
@@ -93,11 +94,25 @@ fn clean_frame(line: &str) -> String {
 mod tests {
     use super::*;
 
-    /// The hook is global, so this proves the whole path once: a real panic,
-    /// caught, arriving in the feed the browser reads as a `Panicked` event.
+    /// Both halves of the contract, in one test on purpose: the panic hook is
+    /// process-global, so two tests installing it would race each other.
+    ///
+    /// Half one — a real panic reaches the feed the browser reads. Half two —
+    /// the hook that was already installed still runs, which is what keeps the
+    /// default backtrace going to the terminal. Now that nothing else is
+    /// printed, that report is the whole of what the terminal is for.
     #[test]
-    fn a_real_panic_lands_in_the_feed() {
-        let activity = Arc::new(ActivityLog::new(false));
+    fn a_real_panic_reaches_both_the_feed_and_the_hook_behind_us() {
+        let activity = Arc::new(ActivityLog::new());
+
+        let previous_ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+        {
+            let previous_ran = previous_ran.clone();
+            std::panic::set_hook(Box::new(move |_| {
+                previous_ran.store(true, std::sync::atomic::Ordering::SeqCst);
+            }));
+        }
 
         install(activity.clone());
 
@@ -106,6 +121,12 @@ mod tests {
         });
 
         assert!(result.is_err());
+
+        assert!(
+            previous_ran.load(std::sync::atomic::Ordering::SeqCst),
+            "the hook installed before ours did not run — the backtrace would \
+             never reach the terminal"
+        );
 
         let landed = activity
             .recent(usize::MAX)

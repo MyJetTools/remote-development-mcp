@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rest_api_shared::{
-    ActionRunModel, DashboardStateResponse, HistoryEntryModel, JobModel, RepoModel,
+    ActionRunModel, DashboardStateResponse, HistoryEntryModel, JobModel, RepoModel, SessionModel,
 };
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 
@@ -10,10 +10,6 @@ use crate::{
     app::{AppContext, APP_NAME, APP_VERSION},
     jobs::{Job, JobStateFilter},
 };
-
-/// How much of the feed one snapshot carries. The page polls, so this is a
-/// screenful and a scrollback — not the whole ring.
-const HISTORY_ITEMS: usize = 200;
 
 /// Reads everything the console shows, in one pass.
 ///
@@ -61,10 +57,27 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
         bind_addr: app.bind_addr.clone(),
         uptime_sec: (now.unix_microseconds - app.started_at.unix_microseconds) as f64 / 1_000_000.0,
         repos,
+        sessions: app
+            .sessions
+            .all()
+            .into_iter()
+            .map(|session| SessionModel {
+                session_id: session.session_id.clone(),
+                repo: session.repo.clone(),
+                ip: session.ip.clone(),
+                country: session.country.clone(),
+                client: session.client.clone(),
+                protocol_version: session.protocol_version.clone(),
+                connected_at: session.connected_at.to_rfc3339(),
+                age_sec: session.age_sec(now),
+            })
+            .collect(),
         jobs,
+        // The whole ring: it is already bounded, so a second limit here could
+        // only drift from it.
         history: app
             .activity
-            .recent(HISTORY_ITEMS)
+            .recent(usize::MAX)
             .into_iter()
             .map(to_history_model)
             .collect(),

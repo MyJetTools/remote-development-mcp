@@ -52,10 +52,30 @@ a:hover {
     white-space: nowrap;
 }
 
+/* The page itself never scrolls: it is exactly one viewport tall, and the
+   history at the bottom takes whatever the panels above it leave. */
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+}
+
 #main-panel {
-    padding: 12px 16px 32px 16px;
+    height: 100%;
     max-width: 1600px;
     margin: 0 auto;
+    padding: 12px 16px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Takes its natural height while there is room. `flex-shrink` and the internal
+   scroll are what stop a short window from clipping it out of reach. */
+.top-region {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .app-header {
@@ -63,9 +83,10 @@ a:hover {
     align-items: baseline;
     gap: 16px;
     flex-wrap: wrap;
-    padding: 10px 0 14px 0;
+    padding: 2px 0 12px 0;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
 }
 
 .app-title {
@@ -107,11 +128,23 @@ a:hover {
     background: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 6px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     overflow: hidden;
 }
 
+/* Claims the leftover height and scrolls inside itself. `min-height: 0` is what
+   lets a flex child shrink past its content instead of pushing the page taller
+   than the viewport. */
+.panel.history {
+    flex: 1 1 55%;
+    min-height: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .panel-head {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -252,7 +285,8 @@ tr.row-PANIC td {
 }
 
 .history-scroll {
-    max-height: 60vh;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
 }
 

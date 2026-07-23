@@ -7,6 +7,7 @@ use crate::{
     activity::ActivityLog,
     audit::AuditLog,
     repo::{expand_home, RepoContext},
+    sessions::SessionsRegistry,
     settings::SettingsModel,
 };
 
@@ -19,12 +20,15 @@ pub struct AppContext {
     pub started_at: rust_extensions::date_time::DateTimeAsMicroseconds,
     pub repos: Vec<Arc<RepoContext>>,
     pub bind_addr: String,
-    /// What the console renders, and the sink that echoes every event to
-    /// stdout as it happens.
+    /// What the browser console renders. In-memory only — nothing here is
+    /// written to the terminal or survives a restart.
     pub activity: Arc<ActivityLog>,
     /// GitHub Actions runs being followed, shared with the poller and the
     /// REST surface.
     pub watched_runs: Arc<WatchedRuns>,
+    /// Live MCP sessions. Filled by the middleware's lifecycle hooks, so it
+    /// holds what is connected now rather than a guess from request traffic.
+    pub sessions: Arc<SessionsRegistry>,
     /// `None` means the server does not authenticate at all and trusts whatever
     /// reaches it — the normal setup, where a reverse proxy in front terminates
     /// authentication.
@@ -38,6 +42,7 @@ impl AppContext {
     /// endpoint that fails every call.
     pub async fn new(settings: SettingsModel, activity: Arc<ActivityLog>) -> Result<Self, String> {
         let watched_runs = Arc::new(WatchedRuns::new());
+        let sessions = Arc::new(SessionsRegistry::new());
 
         // No token configured means no authentication — see the field's note. A
         // token that is present but blank is a mistake worth catching, though,
@@ -95,6 +100,7 @@ impl AppContext {
             bind_addr: settings.bind_addr.clone(),
             activity,
             watched_runs,
+            sessions,
             // Already trimmed above, to match the presented token — which
             // `strip_bearer` trims. Storing it untrimmed would let a token with
             // stray whitespace pass startup validation and then reject every

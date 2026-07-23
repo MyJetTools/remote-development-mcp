@@ -4,7 +4,7 @@ use rest_api_shared::HistoryEntryModel;
 #[component]
 pub fn HistoryPanel(history: Vec<HistoryEntryModel>) -> Element {
     rsx! {
-        div { class: "panel",
+        div { class: "panel history",
             div { class: "panel-head",
                 "History"
                 span { class: "panel-count", "{history.len()}" }

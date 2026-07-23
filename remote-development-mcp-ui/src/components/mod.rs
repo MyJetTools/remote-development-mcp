@@ -10,3 +10,5 @@ mod render_duration;
 pub use render_duration::*;
 mod repos_panel;
 pub use repos_panel::*;
+mod sessions_panel;
+pub use sessions_panel::*;

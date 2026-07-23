@@ -36,9 +36,12 @@ pub fn RenderDashboard() -> Element {
 
     rsx! {
         crate::components::Header { state: state.clone(), stale }
-        crate::components::ReposPanel { repos: state.repos.clone() }
-        crate::components::JobsPanel { jobs: state.jobs.clone() }
-        crate::components::ActionsPanel { actions: state.actions.clone() }
+        div { class: "top-region",
+            crate::components::ReposPanel { repos: state.repos.clone() }
+            crate::components::SessionsPanel { sessions: state.sessions.clone() }
+            crate::components::JobsPanel { jobs: state.jobs.clone() }
+            crate::components::ActionsPanel { actions: state.actions.clone() }
+        }
         crate::components::HistoryPanel { history: state.history }
     }
 }

@@ -6,9 +6,13 @@ use rust_extensions::date_time::DateTimeAsMicroseconds;
 use super::{Job, JobStateFilter, JobStatus};
 
 /// Finished jobs are remembered so a client can still collect the result of a
-/// build it stopped polling. Past this many, the oldest are forgotten — their
-/// log files stay on disk either way.
-const MAX_KEPT_FINISHED_JOBS: usize = 200;
+/// build it stopped polling. Past this many, the oldest-finished are forgotten —
+/// their log files stay on disk either way.
+///
+/// Deliberately small: the console shows the processes panel at a glance, and a
+/// long tail of yesterday's builds is noise there. Running jobs are never
+/// counted or dropped, so the limit can not cost anyone a build in flight.
+const MAX_KEPT_FINISHED_JOBS: usize = 5;
 
 /// The stored command line is capped so the registry's retained memory can not
 /// be driven by however long a command a caller chooses to send: up to

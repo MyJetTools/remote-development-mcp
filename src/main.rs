@@ -14,6 +14,7 @@ mod jobs;
 mod mcp;
 mod repo;
 mod scripts;
+mod sessions;
 mod settings;
 
 const SETTINGS_FILE: &str = "~/.remote-development-mcp";
@@ -24,20 +25,20 @@ async fn main() {
         .populate_app_and_version(app::APP_NAME, app::APP_VERSION)
         .await;
 
+    // Everything that happens is kept here in memory and read over the REST API
+    // by the browser console. Nothing of it goes to the terminal — see
+    // `ActivityLog`.
+    let activity = Arc::new(ActivityLog::new());
+
+    // First, so every panic from here on is covered: it goes into the feed the
+    // browser renders *and* to the terminal, which carries nothing else and so
+    // cannot bury it.
+    crate::activity::install(activity.clone());
+
     let settings = match SettingsModel::load(SETTINGS_FILE).await {
         Ok(settings) => settings,
         Err(err) => panic!("Can not read the settings from {}. {}", SETTINGS_FILE, err),
     };
-
-    // Every event is echoed to stdout as it happens and kept in memory for the
-    // browser console to read. Nothing takes over the terminal, so the ordinary
-    // things a terminal is good at — scrollback, piping to a file, launchd
-    // capturing the output — all keep working.
-    let activity = Arc::new(ActivityLog::new(true));
-
-    // Installed before anything can panic, so a panic lands in the feed the
-    // browser renders as well as on the terminal.
-    crate::activity::install(activity.clone());
 
     // Everything the settings describe is validated while the context is built,
     // so a misconfiguration stops the server here rather than turning into an

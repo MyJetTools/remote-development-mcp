@@ -53,6 +53,19 @@ pub struct ActionRunModel {
     pub elapsed_sec: f64,
 }
 
+/// One live MCP session.
+#[derive(Serialize, Deserialize, MyHttpObjectStructure, Clone, Debug, PartialEq)]
+pub struct SessionModel {
+    pub session_id: String,
+    pub repo: String,
+    pub ip: String,
+    pub country: Option<String>,
+    pub client: Option<String>,
+    pub protocol_version: String,
+    pub connected_at: String,
+    pub age_sec: f64,
+}
+
 /// Everything the console shows, in one snapshot.
 ///
 /// One endpoint rather than four because the page polls: a single round trip
@@ -65,6 +78,7 @@ pub struct DashboardStateResponse {
     pub bind_addr: String,
     pub uptime_sec: f64,
     pub repos: Vec<RepoModel>,
+    pub sessions: Vec<SessionModel>,
     pub jobs: Vec<JobModel>,
     pub history: Vec<HistoryEntryModel>,
     pub actions: Vec<ActionRunModel>,

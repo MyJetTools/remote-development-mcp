@@ -4,43 +4,31 @@ use parking_lot::Mutex;
 
 use super::ActivityEvent;
 
-/// How much history the console keeps. The window only ever shows a screenful;
-/// the rest is there for scrolling back over a session.
-const MAX_EVENTS: usize = 500;
+/// How much history the console keeps: a screenful plus enough to scroll back
+/// over what just happened.
+const MAX_EVENTS: usize = 100;
 
-/// The feed the console renders under "History".
+/// The feed the browser console renders under "History".
 ///
 /// A bounded ring: the server runs for weeks, so an unbounded log would be a
 /// slow leak. `parking_lot` because nothing is awaited while it is held —
 /// pushing an event is a `push_back` and a possible `pop_front`.
 ///
-/// When the console is not running (stdout is not a terminal) events are printed
-/// as plain lines instead, so nothing is lost under launchd or a pipe.
+/// Deliberately writes nothing to the terminal. The terminal is reserved for
+/// panics, and a feed streaming through it would bury the one thing that has to
+/// be impossible to miss. Everything here is read over the REST API instead.
 pub struct ActivityLog {
     events: Mutex<VecDeque<ActivityEvent>>,
-    echo_to_stdout: bool,
 }
 
 impl ActivityLog {
-    pub fn new(echo_to_stdout: bool) -> Self {
+    pub fn new() -> Self {
         Self {
             events: Mutex::new(VecDeque::with_capacity(MAX_EVENTS)),
-            echo_to_stdout,
         }
     }
 
     pub fn push(&self, event: ActivityEvent) {
-        if self.echo_to_stdout {
-            println!(
-                "{} {} [{}] {} {}",
-                event.time_of_day(),
-                event.kind.as_str(),
-                event.repo,
-                event.subject,
-                event.detail
-            );
-        }
-
         let mut events = self.events.lock();
 
         if events.len() == MAX_EVENTS {
@@ -50,7 +38,7 @@ impl ActivityLog {
         events.push_back(event);
     }
 
-    /// Newest first, at most `amount` — the order the console wants to draw.
+    /// Newest first, at most `amount` — the order the console draws.
     pub fn recent(&self, amount: usize) -> Vec<ActivityEvent> {
         self.events
             .lock()
@@ -59,6 +47,12 @@ impl ActivityLog {
             .take(amount)
             .cloned()
             .collect()
+    }
+}
+
+impl Default for ActivityLog {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -72,7 +66,7 @@ mod tests {
 
     #[test]
     fn newest_comes_first() {
-        let log = ActivityLog::new(false);
+        let log = ActivityLog::new();
 
         log.push(event("first"));
         log.push(event("second"));
@@ -87,7 +81,7 @@ mod tests {
 
     #[test]
     fn the_ring_stays_bounded_and_drops_the_oldest() {
-        let log = ActivityLog::new(false);
+        let log = ActivityLog::new();
 
         for index in 0..(MAX_EVENTS + 100) {
             log.push(event(&format!("call-{}", index)));
@@ -101,7 +95,7 @@ mod tests {
 
     #[test]
     fn asking_for_more_than_there_is_returns_what_there_is() {
-        let log = ActivityLog::new(false);
+        let log = ActivityLog::new();
 
         log.push(event("only"));
 
