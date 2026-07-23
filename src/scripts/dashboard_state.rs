@@ -114,10 +114,15 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
 /// session: anything the sweeper dropped is simply not in the snapshot.
 fn read_sessions(app: &Arc<AppContext>, now: DateTimeAsMicroseconds) -> Vec<SessionModel> {
     let mut result = Vec::new();
+    let mut live_keys: Vec<(String, String)> = Vec::new();
 
     for endpoint in app.endpoints.iter() {
         for session in endpoint.live_sessions() {
-            // Absent only if the cap in the registry already dropped the row.
+            live_keys.push((endpoint.url.to_string(), session.id.clone()));
+
+            // Absent when the connect has not landed yet (the middleware lists a
+            // session before it announces it), or for a session adopted from a
+            // client-supplied id, which carries no `initialize` to decorate it.
             // The session is real either way, so it is rendered without the
             // decoration rather than hidden.
             let known = app.sessions.get(endpoint.url, &session.id);
@@ -142,6 +147,13 @@ fn read_sessions(app: &Arc<AppContext>, now: DateTimeAsMicroseconds) -> Vec<Sess
             });
         }
     }
+
+    // Reclaim any registry row whose session is no longer live. Without a cap
+    // this is what bounds the registry and sweeps a row orphaned by a
+    // connect/disconnect reorder. Done here because this is the one place that
+    // already holds the middleware's live set.
+    app.sessions
+        .reconcile_against_live(live_keys.iter().map(|(e, i)| (e.as_str(), i.as_str())));
 
     // Newest first — the order the console draws.
     result.sort_by(|left, right| {

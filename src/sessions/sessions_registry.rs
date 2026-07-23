@@ -9,11 +9,13 @@ use super::SessionInfo;
 ///
 /// It mirrors the middleware's own session set: a row is added when a session
 /// appears and removed when it goes, both driven by the middleware's lifecycle
-/// hooks. So it holds no more than the middleware holds, and needs no cap of its
-/// own — the middleware's idle sweeper is what bounds both. The console reads
-/// this to decorate the session list it drives from the middleware; a missing
-/// row just means a session shown without its ip or client, never a session
-/// hidden.
+/// hooks, and [`Self::reconcile_against_live`] sweeps any row whose session the
+/// middleware no longer lists — the backstop for the connect/disconnect reorder
+/// the hooks alone can leave behind. So it needs no cap of its own: it holds no
+/// more than the middleware holds, which the idle sweeper bounds. The console
+/// reads this to decorate the session list it drives from the middleware; a
+/// missing row just means a session shown without its ip or client, never a
+/// session hidden.
 ///
 /// `parking_lot` because nothing is awaited under the lock — a hook inserts or
 /// removes one entry, the HTTP side looks one up.
@@ -77,6 +79,28 @@ impl SessionsRegistry {
             .lock()
             .get(&key_of(endpoint, session_id))
             .cloned()
+    }
+
+    /// Drops every row whose session the middleware no longer lists as live.
+    ///
+    /// This is what keeps the registry bounded without a cap, and it closes the
+    /// one hole the hooks leave: the middleware inserts a session into its map
+    /// *before* it announces the connect, so a concurrent `DELETE` can announce
+    /// the disconnect first — a no-op against a row not yet inserted — after
+    /// which `connected` inserts a row that no later disconnect will ever match.
+    /// Reconciling against the live set reclaims that orphan; the middleware's
+    /// own idle sweeper is what ultimately bounds the live set.
+    ///
+    /// A session that is live but whose connect has not landed yet is safe: its
+    /// key is in `live`, so it is kept — it simply carries no decoration until
+    /// the connect arrives.
+    pub fn reconcile_against_live<'a>(&self, live: impl IntoIterator<Item = (&'a str, &'a str)>) {
+        let keep: ahash::AHashSet<String> = live
+            .into_iter()
+            .map(|(endpoint, session_id)| key_of(endpoint, session_id))
+            .collect();
+
+        self.sessions.lock().retain(|key, _| keep.contains(key));
     }
 
     /// Newest first. Nothing in the running server reads the whole table — the
@@ -224,6 +248,39 @@ mod tests {
             "the established session was evicted by the flood"
         );
         assert_eq!(registry.all().len(), 1_001);
+    }
+
+    #[test]
+    fn reconcile_reclaims_an_orphan_the_middleware_no_longer_lists() {
+        let registry = SessionsRegistry::new();
+
+        // A row the hooks left behind: connected fired, its matching disconnect
+        // can no longer arrive (or already did as a no-op before the insert).
+        registry.connected(session_at("demo", "orphan", 1_000));
+        // A genuinely live one.
+        registry.connected(session_at("demo", "live", 2_000));
+
+        // The middleware lists only the live session.
+        registry.reconcile_against_live([("demo", "live")]);
+
+        let left = registry.all();
+        assert_eq!(left.len(), 1);
+        assert_eq!(left[0].session_id, "live");
+    }
+
+    #[test]
+    fn reconcile_keeps_a_live_session_even_before_its_connect_lands() {
+        let registry = SessionsRegistry::new();
+
+        registry.connected(session_at("demo", "decorated", 1_000));
+
+        // Two live sessions — one not yet decorated (no row). Reconcile must not
+        // invent a rule that drops the decorated one just because the other has
+        // no row: it keeps every key the middleware lists.
+        registry.reconcile_against_live([("demo", "decorated"), ("demo", "pending")]);
+
+        assert_eq!(registry.all().len(), 1);
+        assert_eq!(registry.all()[0].session_id, "decorated");
     }
 
     #[test]

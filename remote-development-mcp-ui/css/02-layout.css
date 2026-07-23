@@ -7,7 +7,10 @@ body {
 }
 
 #main-panel {
-    height: 100%;
+    /* 100vh rather than 100% so the full height does not depend on every
+       ancestor also carrying height:100% — that chain breaking is the usual
+       reason the sidebar stops short of the bottom. */
+    height: 100vh;
     display: flex;
     flex-direction: row;
     min-height: 0;
