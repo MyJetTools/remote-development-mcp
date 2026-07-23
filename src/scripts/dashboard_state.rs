@@ -73,21 +73,7 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
         bind_addr: app.bind_addr.clone(),
         uptime_sec: (now.unix_microseconds - app.started_at.unix_microseconds) as f64 / 1_000_000.0,
         repos,
-        sessions: app
-            .sessions
-            .all()
-            .into_iter()
-            .map(|session| SessionModel {
-                session_id: session.session_id.clone(),
-                endpoint: session.endpoint.clone(),
-                ip: session.ip.clone(),
-                country: session.country.clone(),
-                client: session.client.clone(),
-                protocol_version: session.protocol_version.clone(),
-                connected_at: session.connected_at.to_rfc3339(),
-                age_sec: session.age_sec(now),
-            })
-            .collect(),
+        sessions: read_sessions(app, now),
         jobs,
         // The whole ring: it is already bounded, so a second limit here could
         // only drift from it.
@@ -114,6 +100,60 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
             })
             .collect(),
     }
+}
+
+/// The live sessions, joined from the two halves that know about them.
+///
+/// The middleware is asked which sessions exist and when each was last used —
+/// it is what creates and sweeps them, and `last_access` moves on every request
+/// with no event to mirror it from, so it has to be pulled rather than cached.
+/// Our own registry supplies what only `initialize` carried: the ip, the country
+/// the proxy reported, and the client's name.
+///
+/// Driving the list from the middleware also means a row can not outlive its
+/// session: anything the sweeper dropped is simply not in the snapshot.
+fn read_sessions(app: &Arc<AppContext>, now: DateTimeAsMicroseconds) -> Vec<SessionModel> {
+    let mut result = Vec::new();
+
+    for endpoint in app.endpoints.iter() {
+        for session in endpoint.live_sessions() {
+            // Absent only if the cap in the registry already dropped the row.
+            // The session is real either way, so it is rendered without the
+            // decoration rather than hidden.
+            let known = app.sessions.get(endpoint.url, &session.id);
+
+            let last_access = session.last_access.as_date_time();
+
+            result.push(SessionModel {
+                session_id: session.id.clone(),
+                endpoint: endpoint.url.to_string(),
+                ip: known
+                    .as_ref()
+                    .map(|known| known.ip.clone())
+                    .unwrap_or_default(),
+                country: known.as_ref().and_then(|known| known.country.clone()),
+                client: known.as_ref().and_then(|known| known.client.clone()),
+                protocol_version: session.version.clone(),
+                connected_at: session.create.to_rfc3339(),
+                age_sec: seconds_between(session.create, now),
+                last_access_at: last_access.to_rfc3339(),
+                idle_sec: seconds_between(last_access, now),
+            });
+        }
+    }
+
+    // Newest first — the order the console draws.
+    result.sort_by(|left, right| {
+        left.age_sec
+            .partial_cmp(&right.age_sec)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    result
+}
+
+fn seconds_between(from: DateTimeAsMicroseconds, to: DateTimeAsMicroseconds) -> f64 {
+    (to.unix_microseconds - from.unix_microseconds) as f64 / 1_000_000.0
 }
 
 fn to_job_model(repo: &str, job: Job, now: DateTimeAsMicroseconds) -> JobModel {

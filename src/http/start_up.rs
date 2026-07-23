@@ -77,7 +77,14 @@ fn build_endpoint(
         sessions.clone(),
     )));
 
-    Arc::new(mcp)
+    let mcp = Arc::new(mcp);
+
+    // Handed back to the endpoint so the console can pull live sessions from it.
+    // The observer above still records what only `initialize` carries — ip,
+    // country, client name — which the middleware's own snapshot does not hold.
+    endpoint.set_middleware(mcp.clone());
+
+    mcp
 }
 
 /// `McpMiddleware::new` takes `&'static str`, and these are built from settings

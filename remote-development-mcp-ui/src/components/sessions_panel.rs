@@ -25,6 +25,7 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                             th { "endpoint" }
                             th { "session id" }
                             th { "connected" }
+                            th { "last seen" }
                         }
                     }
                     tbody {
@@ -33,6 +34,11 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                                 let country = session.country.clone().unwrap_or_else(|| "—".to_string());
                                 let client = session.client.clone().unwrap_or_else(|| "—".to_string());
                                 let connected = render_duration(session.age_sec);
+                                // Read live from the middleware on every poll, so
+                                // this counts up while a session sits idle and
+                                // drops back to zero the moment anything arrives —
+                                // a ping included.
+                                let last_seen = render_duration(session.idle_sec);
 
                                 rsx! {
                                     tr { key: "{session.endpoint}/{session.session_id}",
@@ -43,6 +49,7 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                                         td { class: "nowrap", "{session.endpoint}" }
                                         td { class: "dim truncate", "{session.session_id}" }
                                         td { class: "dim nowrap", "{connected} ago" }
+                                        td { class: "dim nowrap", "{last_seen} ago" }
                                     }
                                 }
                             }

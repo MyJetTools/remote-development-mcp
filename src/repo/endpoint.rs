@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use ahash::AHashMap;
+use mcp_server_middleware::{McpMiddleware, McpSession};
 
 use super::RepoContext;
 
@@ -30,6 +31,15 @@ pub struct Endpoint {
     projects: Vec<Arc<RepoContext>>,
 
     by_id: AHashMap<String, Arc<RepoContext>>,
+
+    /// The middleware serving this url, kept so the console can ask it what is
+    /// connected *now*.
+    ///
+    /// Filled at start-up rather than in the constructor, because the middleware
+    /// is built from the endpoint and not the other way round. Held here rather
+    /// than in a list beside the endpoints so the url and its middleware can not
+    /// fall out of step.
+    middleware: OnceLock<Arc<McpMiddleware>>,
 }
 
 impl Endpoint {
@@ -70,11 +80,37 @@ impl Endpoint {
             description,
             projects,
             by_id,
+            middleware: OnceLock::new(),
         })
     }
 
     pub fn projects(&self) -> &[Arc<RepoContext>] {
         &self.projects
+    }
+
+    /// Called once, while the HTTP server is being wired up.
+    pub fn set_middleware(&self, middleware: Arc<McpMiddleware>) {
+        let _ = self.middleware.set(middleware);
+    }
+
+    /// The sessions the middleware currently holds for this url.
+    ///
+    /// Pulled on every read rather than mirrored, because `last_access` is the
+    /// one field that changes without any event to hang a hook on: it is
+    /// refreshed by every request, `ping` included, and the lifecycle hooks fire
+    /// only at connect and disconnect. A copy taken at connect time would sit
+    /// there looking like a timestamp and never move.
+    ///
+    /// This is also the authority on *which* sessions exist — the middleware is
+    /// what sweeps idle ones — so a row can not outlive the session it stands
+    /// for.
+    pub fn live_sessions(&self) -> Vec<McpSession> {
+        match self.middleware.get() {
+            Some(middleware) => middleware.get_sessions(),
+            // Only before the server is wired up; the console is not reachable
+            // yet at that point.
+            None => Vec::new(),
+        }
     }
 
     /// True when this endpoint serves exactly one project, so the `project`

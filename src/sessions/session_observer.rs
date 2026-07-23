@@ -49,7 +49,6 @@ impl McpConnectionInfo for SessionObserver {
             ip: clamp_field(&ip),
             country,
             client,
-            protocol_version: clamp_field(&session.version),
             connected_at: DateTimeAsMicroseconds::now(),
         });
     }

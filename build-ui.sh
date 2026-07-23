@@ -20,6 +20,13 @@ fi
 
 cd "${UI_DIR}"
 
+# dx names its assets by content hash and only ever adds to this folder, so
+# without wiping it first the copy below carries every bundle ever built into
+# wwwroot — index.html points at one of them and the rest are dead megabytes.
+# Wiping wwwroot alone does not help: the staleness is on this side of the copy.
+echo ">> cleaning ${UI_DIR}/target/dx"
+rm -rf "${UI_DIR}/target/dx"
+
 echo ">> dx build --release --web"
 dx build --release --web
 

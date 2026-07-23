@@ -46,7 +46,27 @@ impl SessionsRegistry {
         self.sessions.lock().remove(&key_of(endpoint, session_id));
     }
 
-    /// Newest first — the order the console draws.
+    /// What `initialize` carried for one session, if it is still remembered.
+    ///
+    /// The console joins this onto the middleware's own session list rather than
+    /// rendering it directly: the middleware knows which sessions exist and when
+    /// each was last used, this knows who they are. Returns `None` when the cap
+    /// below has already dropped the row, which is why the caller must render a
+    /// session without it rather than hide the session.
+    pub fn get(&self, endpoint: &str, session_id: &str) -> Option<SessionInfo> {
+        self.sessions
+            .lock()
+            .get(&key_of(endpoint, session_id))
+            .cloned()
+    }
+
+    /// Newest first.
+    ///
+    /// Nothing in the server reads the whole table any more — the console drives
+    /// its list from the middleware and looks rows up one at a time with
+    /// [`Self::get`]. Kept for the tests, which is where the cap below is worth
+    /// observing.
+    #[cfg(test)]
     pub fn all(&self) -> Vec<SessionInfo> {
         let mut result: Vec<SessionInfo> = self.sessions.lock().values().cloned().collect();
 
@@ -106,7 +126,6 @@ mod tests {
             ip: "10.0.0.1".to_string(),
             country: Some("DE".to_string()),
             client: Some("claude-code".to_string()),
-            protocol_version: "2025-06-18".to_string(),
             connected_at: DateTimeAsMicroseconds::now(),
         }
     }

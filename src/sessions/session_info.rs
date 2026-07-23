@@ -6,11 +6,15 @@ use rust_extensions::date_time::DateTimeAsMicroseconds;
 /// text in the registry.
 const MAX_FIELD_CHARS: usize = 120;
 
-/// One live MCP session, as the console shows it.
+/// What `initialize` carried about one session, kept beside the middleware's own
+/// record of it.
 ///
-/// Built from what the middleware hands over when a session appears. Held only
-/// while the session lives: the middleware says when it is gone, whether that
-/// was a client DELETE, the idle sweeper, or a restart.
+/// Deliberately only the fields the middleware does not hold. It knows the id,
+/// the protocol version, when the session was created and when it was last used,
+/// and the console reads those straight off `McpSession` on every poll —
+/// duplicating them here would mean two answers to the same question, and the
+/// copy would be the stale one. What it can not know is who is on the other end:
+/// the ip, the country a proxy reported, and the name from `clientInfo`.
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
     pub session_id: String,
@@ -26,14 +30,10 @@ pub struct SessionInfo {
     /// the session was adopted from an id the server never issued — there is no
     /// `initialize` on that path to carry a name.
     pub client: Option<String>,
-    pub protocol_version: String,
+    /// Not rendered — the console shows the middleware's `create` instead. Kept
+    /// because the cap in the registry drops the oldest rows first and needs
+    /// something to order them by.
     pub connected_at: DateTimeAsMicroseconds,
-}
-
-impl SessionInfo {
-    pub fn age_sec(&self, now: DateTimeAsMicroseconds) -> f64 {
-        (now.unix_microseconds - self.connected_at.unix_microseconds) as f64 / 1_000_000.0
-    }
 }
 
 /// Cuts a client-supplied value to something a table can hold, never splitting
@@ -74,26 +74,5 @@ mod tests {
         let clamped = clamp_field(&"é".repeat(10_000));
 
         assert_eq!(clamped.chars().count(), MAX_FIELD_CHARS + 1);
-    }
-
-    #[test]
-    fn age_counts_from_when_the_session_appeared() {
-        let connected_at = DateTimeAsMicroseconds::now();
-
-        let session = SessionInfo {
-            session_id: "s".to_string(),
-            endpoint: "r".to_string(),
-            ip: "127.0.0.1".to_string(),
-            country: None,
-            client: None,
-            protocol_version: "2025-06-18".to_string(),
-            connected_at,
-        };
-
-        let later = DateTimeAsMicroseconds {
-            unix_microseconds: connected_at.unix_microseconds + 90_000_000,
-        };
-
-        assert!((session.age_sec(later) - 90.0).abs() < 0.001);
     }
 }

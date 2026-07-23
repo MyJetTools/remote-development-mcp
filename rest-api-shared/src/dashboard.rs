@@ -69,6 +69,13 @@ pub struct SessionModel {
     pub protocol_version: String,
     pub connected_at: String,
     pub age_sec: f64,
+    /// When a request last arrived on this session — any request, `ping`
+    /// included. Read live from the middleware on every poll, because it is the
+    /// same value its idle sweeper decides by.
+    pub last_access_at: String,
+    /// Seconds since that request. What the sweeper compares to the idle
+    /// timeout, so a row climbing towards it is a session about to be dropped.
+    pub idle_sec: f64,
 }
 
 /// Everything the console shows, in one snapshot.
