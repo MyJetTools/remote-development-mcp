@@ -8,3 +8,5 @@ mod repo_slug;
 pub use repo_slug::*;
 mod version;
 pub use version::*;
+mod workflow_run;
+pub use workflow_run::*;

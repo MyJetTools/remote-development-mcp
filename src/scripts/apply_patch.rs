@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{audit::AuditMutation, repo::RepoContext};
 
-use super::git_capture;
+use super::{git_capture, resolve_working_dir};
 
 pub struct ApplyPatchResult {
     pub files_changed: Vec<String>,
@@ -22,16 +22,24 @@ pub struct ApplyPatchResult {
 /// applies leaves nothing half-written behind. The list of changed files comes
 /// from git (`--numstat`), not from re-parsing the diff, so renames, mode-only
 /// changes and binary hunks are reported correctly.
-pub async fn apply_patch(repo: &Arc<RepoContext>, patch: &str) -> Result<ApplyPatchResult, String> {
+pub async fn apply_patch(
+    repo: &Arc<RepoContext>,
+    patch: &str,
+    path: Option<&str>,
+) -> Result<ApplyPatchResult, String> {
     if patch.trim().is_empty() {
         return Err("The patch is empty".to_string());
     }
+
+    // The folder git applies in. Paths inside the patch are relative to it, so
+    // with a root holding several repositories this is what says which one.
+    let working_dir = resolve_working_dir(repo, path)?;
 
     let patch = normalize_trailing_newline(patch);
 
     let check = git_capture(
         &["apply", "--check", "-"],
-        repo.root(),
+        &working_dir,
         Some(patch.as_bytes()),
     )
     .await?;
@@ -48,14 +56,14 @@ pub async fn apply_patch(repo: &Arc<RepoContext>, patch: &str) -> Result<ApplyPa
     // binary hunks, and which a crafted content line can spoof).
     let numstat = git_capture(
         &["apply", "--numstat", "-"],
-        repo.root(),
+        &working_dir,
         Some(patch.as_bytes()),
     )
     .await?;
 
     let files_changed = parse_numstat(&numstat.stdout);
 
-    let applied = git_capture(&["apply", "-"], repo.root(), Some(patch.as_bytes())).await?;
+    let applied = git_capture(&["apply", "-"], &working_dir, Some(patch.as_bytes())).await?;
 
     if !applied.success {
         return Ok(rejected(collect_git_complaint(

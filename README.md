@@ -26,6 +26,17 @@ constructed with that repository's `RepoContext` and holds no reference to any
 other root, so the isolation is structural rather than a validation step that
 could be forgotten.
 
+### A root holding several repositories
+
+The root does not have to be one git repository. Point an endpoint at a folder
+full of libraries, and the optional `path` argument shifts the folder an action
+runs in — `repo_info(path: "my-ssh")`, `git(cwd: "my-ssh", args: ["status"])`,
+`run_command(cwd: "my-ssh", …)`, `apply_patch(path: "my-ssh", …)`,
+`create_release(path: "my-ssh", …)`. It resolves through the same confinement, so
+it can only move within the root, never out of it. Left out, everything runs at
+the root as before. `list_dir` and `search` read each folder's own `.gitignore`
+as they descend, so nested repositories filter correctly.
+
 ## Tools
 
 **Orientation** — `repo_info`: branch, how dirty the tree is, and the workspace

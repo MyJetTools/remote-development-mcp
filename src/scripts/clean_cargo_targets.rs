@@ -276,6 +276,7 @@ mod tests {
                 &repo_settings,
                 audit,
                 std::sync::Arc::new(crate::activity::ActivityLog::new(false)),
+                std::sync::Arc::new(crate::actions::WatchedRuns::new()),
             )
             .await
             .unwrap(),

@@ -3,7 +3,7 @@ use std::time::Duration;
 use flurl::{body::HttpRequestBody, FlUrl};
 use serde::{Deserialize, Serialize};
 
-use super::{ReleaseTag, RepoSlug, Version};
+use super::{ReleaseTag, RepoSlug, Version, WorkflowJobs, WorkflowRun, WorkflowRunsPage};
 
 const GITHUB_API: &str = "https://api.github.com";
 
@@ -186,6 +186,95 @@ impl GitHubClient {
             .map_err(|err| format!("Can not read the created release. Err: {:?}", err))?;
 
         Ok(created.html_url)
+    }
+
+    /// The most recent Actions runs, newest first — what GitHub returns by
+    /// default.
+    pub async fn list_workflow_runs(
+        &self,
+        slug: &RepoSlug,
+        amount: usize,
+    ) -> Result<Vec<WorkflowRun>, String> {
+        let request = FlUrl::new(GITHUB_API)
+            .append_path_segment("repos")
+            .append_path_segment(slug.owner.as_str())
+            .append_path_segment(slug.repo.as_str())
+            .append_path_segment("actions")
+            .append_path_segment("runs");
+
+        let mut response = self
+            .with_headers(request)
+            .append_query_param("per_page", Some(amount.to_string().as_str()))
+            .get()
+            .await
+            .map_err(|err| format!("Can not reach the GitHub API. Err: {:?}", err))?;
+
+        let status = response.get_status_code();
+
+        if status != 200 {
+            return Err(describe_failure(status, &mut response).await);
+        }
+
+        let page: WorkflowRunsPage = response
+            .get_json()
+            .await
+            .map_err(|err| format!("Can not read the workflow runs. Err: {:?}", err))?;
+
+        Ok(page.workflow_runs)
+    }
+
+    pub async fn get_workflow_run(
+        &self,
+        slug: &RepoSlug,
+        run_id: u64,
+    ) -> Result<WorkflowRun, String> {
+        let request = FlUrl::new(GITHUB_API)
+            .append_path_segment("repos")
+            .append_path_segment(slug.owner.as_str())
+            .append_path_segment(slug.repo.as_str())
+            .append_path_segment("actions")
+            .append_path_segment("runs")
+            .append_path_segment(run_id.to_string());
+
+        let mut response = self
+            .with_headers(request)
+            .get()
+            .await
+            .map_err(|err| format!("Can not reach the GitHub API. Err: {:?}", err))?;
+
+        let status = response.get_status_code();
+
+        if status != 200 {
+            return Err(describe_failure(status, &mut response).await);
+        }
+
+        response
+            .get_json()
+            .await
+            .map_err(|err| format!("Can not read the workflow run. Err: {:?}", err))
+    }
+
+    /// Which job and step failed. Only worth asking once a run has failed, so
+    /// the caller decides when to spend the request.
+    pub async fn failed_step(&self, slug: &RepoSlug, run_id: u64) -> Option<String> {
+        let request = FlUrl::new(GITHUB_API)
+            .append_path_segment("repos")
+            .append_path_segment(slug.owner.as_str())
+            .append_path_segment(slug.repo.as_str())
+            .append_path_segment("actions")
+            .append_path_segment("runs")
+            .append_path_segment(run_id.to_string())
+            .append_path_segment("jobs");
+
+        let mut response = self.with_headers(request).get().await.ok()?;
+
+        if response.get_status_code() != 200 {
+            return None;
+        }
+
+        let jobs: WorkflowJobs = response.get_json().await.ok()?;
+
+        jobs.first_failure()
     }
 
     fn with_headers(&self, request: FlUrl) -> FlUrl {

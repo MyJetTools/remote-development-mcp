@@ -6,7 +6,12 @@ use serde::{Deserialize, Serialize};
 use crate::{repo::RepoContext, scripts::repo_info};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
-pub struct RepoInfoInputData {}
+pub struct RepoInfoInputData {
+    #[property(
+        description = "Subfolder to describe, relative to the repository root. Use it when the root holds several independent git repositories — 'my-ssh' then describes that library. Defaults to the root itself"
+    )]
+    pub path: Option<String>,
+}
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct WorkspaceMemberModel {
@@ -19,7 +24,9 @@ pub struct WorkspaceMemberModel {
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct RepoInfoResponse {
-    #[property(description = "Name this repository is served under")]
+    #[property(
+        description = "What this describes — the repository name, plus the subfolder when one was given"
+    )]
     pub root: String,
 
     #[property(description = "Branch currently checked out")]
@@ -66,9 +73,9 @@ impl ToolDefinition for RepoInfoHandler {
 impl McpToolCall<RepoInfoInputData, RepoInfoResponse> for RepoInfoHandler {
     async fn execute_tool_call(
         &self,
-        _model: RepoInfoInputData,
+        model: RepoInfoInputData,
     ) -> Result<RepoInfoResponse, String> {
-        let info = repo_info(&self.repo).await?;
+        let info = repo_info(&self.repo, model.path.as_deref()).await?;
 
         Ok(RepoInfoResponse {
             root: info.root,

@@ -24,6 +24,11 @@ pub struct CreateReleaseInputData {
         description = "Work out the tag and report it without creating anything. Use it to ask 'what would the next version be?'. Defaults to false"
     )]
     pub dry_run: Option<bool>,
+
+    #[property(
+        description = "Subfolder holding the repository to release, relative to the root. Use it when the root holds several independent git repositories. Defaults to the root itself"
+    )]
+    pub path: Option<String>,
 }
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
@@ -87,6 +92,7 @@ impl McpToolCall<CreateReleaseInputData, CreateReleaseResponse> for CreateReleas
                 service: model.service,
                 version: model.version,
                 dry_run: model.dry_run.unwrap_or_default(),
+                path: model.path,
             },
         )
         .await?;

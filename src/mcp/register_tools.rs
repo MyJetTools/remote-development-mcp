@@ -8,7 +8,7 @@ use super::{
     ApplyPatchHandler, CleanCargoTargetsHandler, CreateReleaseHandler, DeletePathHandler,
     EditFileHandler, GetJobOutputHandler, GitHandler, KillJobHandler, ListDirHandler,
     ListJobsHandler, LoggedTool, MovePathHandler, ReadFileHandler, RepoInfoHandler,
-    RunCommandHandler, SearchHandler, WriteFileHandler,
+    RunCommandHandler, SearchHandler, WatchActionsHandler, WriteFileHandler,
 };
 
 /// Wires this repository's tools into its own MCP endpoint.
@@ -46,6 +46,7 @@ pub fn register_tools(mcp: &mut McpMiddleware, repo: &Arc<RepoContext>) {
 
     // Releasing.
     register(mcp, repo, CreateReleaseHandler::new(repo.clone()));
+    register(mcp, repo, WatchActionsHandler::new(repo.clone()));
 
     // Maintenance.
     register(mcp, repo, CleanCargoTargetsHandler::new(repo.clone()));

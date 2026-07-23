@@ -11,6 +11,11 @@ pub enum ActivityKind {
     ToolFailed,
     /// A command finished — arrives long after the call that started it.
     JobFinished,
+    /// A GitHub Actions run changed state.
+    ActionRun,
+    /// Something panicked. Only reachable here: with the console running, the
+    /// default panic report goes to a screen nobody can see.
+    Panicked,
 }
 
 impl ActivityKind {
@@ -19,6 +24,8 @@ impl ActivityKind {
             ActivityKind::ToolCall => "call",
             ActivityKind::ToolFailed => "fail",
             ActivityKind::JobFinished => "done",
+            ActivityKind::ActionRun => "CI",
+            ActivityKind::Panicked => "PANIC",
         }
     }
 }
@@ -62,6 +69,32 @@ impl ActivityEvent {
             repo,
             subject: job_id,
             detail: outcome,
+        }
+    }
+
+    pub fn action_run(repo: String, label: String, outcome: String) -> Self {
+        Self {
+            moment: DateTimeAsMicroseconds::now(),
+            kind: ActivityKind::ActionRun,
+            repo,
+            subject: label,
+            detail: outcome,
+        }
+    }
+
+    pub fn panicked(location: String, message: String, frames: String) -> Self {
+        let detail = if frames.is_empty() {
+            message
+        } else {
+            format!("{}  ⟵ {}", message, frames)
+        };
+
+        Self {
+            moment: DateTimeAsMicroseconds::now(),
+            kind: ActivityKind::Panicked,
+            repo: String::new(),
+            subject: location,
+            detail,
         }
     }
 

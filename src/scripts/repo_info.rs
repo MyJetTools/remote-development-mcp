@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::repo::RepoContext;
 
-use super::{exec_capture, git_capture};
+use super::{exec_capture, git_capture, resolve_working_dir};
 
 /// `git status --porcelain` on a large dirty tree can be long; the count is
 /// what matters, the listing is a sample.
@@ -28,15 +28,23 @@ pub struct RepoInfo {
 /// What a client needs to orient itself before doing anything else: which
 /// branch, how dirty, and — for a Rust workspace — which crates can be built or
 /// tested on their own instead of building the whole tree.
-pub async fn repo_info(repo: &Arc<RepoContext>) -> Result<RepoInfo, String> {
-    let branch = read_branch(repo).await;
-    let status = read_status(repo).await;
-    let workspace = read_workspace_members(repo).await;
+pub async fn repo_info(repo: &Arc<RepoContext>, path: Option<&str>) -> Result<RepoInfo, String> {
+    // The folder this describes. With a root holding many independent
+    // repositories, `path` is what picks which one.
+    let working_dir = resolve_working_dir(repo, path)?;
+
+    let branch = read_branch(&working_dir).await;
+    let status = read_status(&working_dir).await;
+    let workspace = read_workspace_members(repo, &working_dir).await;
 
     Ok(RepoInfo {
-        // The name, not the host path: a client has no use for the layout of
-        // the machine, and every tool takes repository-relative paths anyway.
-        root: repo.name.clone(),
+        // The name plus the subfolder, never the host path: a client has no use
+        // for the layout of the machine, and every tool takes
+        // repository-relative paths anyway.
+        root: match path {
+            Some(path) => format!("{}/{}", repo.name, path.trim_matches('/')),
+            None => repo.name.clone(),
+        },
         git_branch: branch,
         git_dirty: !status.lines.is_empty(),
         git_status_short: status.lines,
@@ -46,8 +54,8 @@ pub async fn repo_info(repo: &Arc<RepoContext>) -> Result<RepoInfo, String> {
     })
 }
 
-async fn read_branch(repo: &Arc<RepoContext>) -> Option<String> {
-    let output = git_capture(&["rev-parse", "--abbrev-ref", "HEAD"], repo.root(), None)
+async fn read_branch(working_dir: &std::path::Path) -> Option<String> {
+    let output = git_capture(&["rev-parse", "--abbrev-ref", "HEAD"], working_dir, None)
         .await
         .ok()?;
 
@@ -72,8 +80,8 @@ struct GitStatus {
     truncated: bool,
 }
 
-async fn read_status(repo: &Arc<RepoContext>) -> GitStatus {
-    let output = git_capture(&["status", "--porcelain"], repo.root(), None).await;
+async fn read_status(working_dir: &std::path::Path) -> GitStatus {
+    let output = git_capture(&["status", "--porcelain"], working_dir, None).await;
 
     let output = match output {
         Ok(output) => output,
@@ -116,8 +124,11 @@ struct Workspace {
 ///
 /// `--no-deps` keeps it to this workspace's own crates and, more importantly,
 /// stops cargo from touching the network to resolve the dependency graph.
-async fn read_workspace_members(repo: &Arc<RepoContext>) -> Workspace {
-    if !repo.root().join("Cargo.toml").exists() {
+async fn read_workspace_members(
+    repo: &Arc<RepoContext>,
+    working_dir: &std::path::Path,
+) -> Workspace {
+    if !working_dir.join("Cargo.toml").exists() {
         return Workspace {
             members: Vec::new(),
             note: Some("Not a Rust workspace — there is no Cargo.toml at the root".to_string()),
@@ -127,7 +138,7 @@ async fn read_workspace_members(repo: &Arc<RepoContext>) -> Workspace {
     let output = exec_capture(
         "cargo",
         &["metadata", "--no-deps", "--format-version", "1"],
-        repo.root(),
+        working_dir,
         None,
     )
     .await;

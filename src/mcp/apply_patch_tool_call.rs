@@ -11,6 +11,11 @@ pub struct ApplyPatchInputData {
         description = "Unified diff, as produced by 'git diff'. It may touch several files. Paths are relative to the repository root"
     )]
     pub patch: String,
+
+    #[property(
+        description = "Subfolder to apply the patch in, relative to the repository root. Paths inside the patch are then relative to that folder. Use it when the root holds several independent git repositories. Defaults to the root itself"
+    )]
+    pub path: Option<String>,
 }
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
@@ -52,7 +57,7 @@ impl McpToolCall<ApplyPatchInputData, ApplyPatchResponse> for ApplyPatchHandler 
         &self,
         model: ApplyPatchInputData,
     ) -> Result<ApplyPatchResponse, String> {
-        let result = apply_patch(&self.repo, &model.patch).await?;
+        let result = apply_patch(&self.repo, &model.patch, model.path.as_deref()).await?;
 
         Ok(ApplyPatchResponse {
             applied: result.rejected.is_none(),

@@ -1,4 +1,9 @@
 mod auth_middleware;
 pub use auth_middleware::*;
+mod build_controllers;
+pub use build_controllers::*;
+pub mod controllers;
+mod index_rewrite_middleware;
+pub use index_rewrite_middleware::*;
 mod start_up;
 pub use start_up::*;

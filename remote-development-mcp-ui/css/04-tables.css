@@ -1,0 +1,87 @@
+table.grid {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table.grid th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-dim);
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+table.grid td {
+    padding: 4px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    vertical-align: top;
+}
+
+table.grid tr:last-child td {
+    border-bottom: none;
+}
+
+table.grid tr.clickable:hover td {
+    background: var(--bg-row);
+    cursor: pointer;
+}
+
+.status-running {
+    color: var(--accent);
+}
+
+.status-exited {
+    color: var(--ok);
+}
+
+.status-failed {
+    color: var(--fail);
+}
+
+.status-killed,
+.status-timed_out {
+    color: var(--warn);
+}
+
+.kind {
+    font-weight: 600;
+}
+
+.kind-call {
+    color: var(--accent);
+}
+
+.kind-fail {
+    color: var(--fail);
+}
+
+.kind-done {
+    color: var(--ok);
+}
+
+.kind-CI {
+    color: var(--warn);
+}
+
+.kind-PANIC {
+    color: var(--panic);
+}
+
+tr.row-PANIC td {
+    background: rgba(255, 92, 92, 0.08);
+    color: var(--panic);
+}
+
+.detail-cell {
+    color: var(--text-dim);
+    max-width: 0;
+    width: 55%;
+}
+
+.history-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
+}

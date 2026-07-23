@@ -6,7 +6,7 @@ use crate::{
     repo::RepoContext,
 };
 
-use super::git_capture;
+use super::{git_capture, resolve_working_dir};
 
 /// What the very first release of a service is numbered, matching the example in
 /// the release guide.
@@ -21,6 +21,8 @@ pub struct CreateReleaseRequest {
     pub version: Option<String>,
     /// Work out the tag and report it without creating anything.
     pub dry_run: bool,
+    /// Subfolder holding the repository to release, when the root holds several.
+    pub path: Option<String>,
 }
 
 pub struct CreateReleaseResult {
@@ -56,12 +58,17 @@ pub async fn create_release(
             ),
         };
 
-    let slug = read_repo_slug(repo).await?;
+    // Which checkout is being released. With a root holding several
+    // repositories, this is what picks one — its remote and its workflows are
+    // what get read.
+    let working_dir = resolve_working_dir(repo, request.path.as_deref())?;
+
+    let slug = read_repo_slug(repo, &working_dir).await?;
 
     // Checked before anything is published. The release guide is explicit that a
     // tag created without its workflow present does not build — so skipping this
     // would report a successful release and quietly produce no image.
-    let service = check_against_workflows(repo, request.service.as_deref()).await?;
+    let service = check_against_workflows(&working_dir, request.service.as_deref()).await?;
 
     let tag = ReleaseTag::new(service);
 
@@ -140,10 +147,10 @@ pub async fn create_release(
 /// produces a tag nothing acts on — a release that looks successful and ships
 /// nothing.
 async fn check_against_workflows(
-    repo: &Arc<RepoContext>,
+    working_dir: &std::path::Path,
     requested: Option<&str>,
 ) -> Result<Option<String>, String> {
-    let layout = read_release_layout(repo.root()).await;
+    let layout = read_release_layout(working_dir).await;
 
     let requested = requested
         .map(|service| service.trim())
@@ -197,8 +204,11 @@ fn parse_requested_version(asked: &str) -> Result<Version, String> {
     })
 }
 
-async fn read_repo_slug(repo: &Arc<RepoContext>) -> Result<RepoSlug, String> {
-    let output = git_capture(&["remote", "get-url", "origin"], repo.root(), None).await?;
+async fn read_repo_slug(
+    _repo: &Arc<RepoContext>,
+    working_dir: &std::path::Path,
+) -> Result<RepoSlug, String> {
+    let output = git_capture(&["remote", "get-url", "origin"], working_dir, None).await?;
 
     if !output.success {
         return Err(format!(

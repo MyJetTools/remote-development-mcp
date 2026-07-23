@@ -5,7 +5,7 @@ use crate::{
     repo::RepoContext,
 };
 
-use super::git_capture;
+use super::{git_capture, resolve_working_dir};
 
 pub struct GitCommandRequest {
     pub args: Vec<String>,
@@ -57,17 +57,7 @@ pub async fn run_git(
         return Err(err);
     }
 
-    let cwd = match request.cwd.as_ref() {
-        Some(cwd) => repo.resolve_path(cwd)?,
-        None => repo.root().to_path_buf(),
-    };
-
-    if !cwd.is_dir() {
-        return Err(format!(
-            "Working directory '{}' does not exist inside the repository",
-            repo.to_relative(&cwd)
-        ));
-    }
+    let cwd = resolve_working_dir(repo, request.cwd.as_deref())?;
 
     // Not gated on the directory already being a git working tree — that would
     // block the very commands that create one (`init`, `clone`). Running git

@@ -32,5 +32,7 @@ mod run_command_tool_call;
 pub use run_command_tool_call::*;
 mod search_tool_call;
 pub use search_tool_call::*;
+mod watch_actions_tool_call;
+pub use watch_actions_tool_call::*;
 mod write_file_tool_call;
 pub use write_file_tool_call::*;

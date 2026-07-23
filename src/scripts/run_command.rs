@@ -9,7 +9,7 @@ use crate::{
     repo::RepoContext,
 };
 
-use super::kill_process_group;
+use super::{kill_process_group, resolve_working_dir};
 
 /// How long a timed-out job is given to wind down after `TERM` before it gets
 /// `KILL`. Long enough for `cargo` to remove its lock file, short enough that a
@@ -85,17 +85,7 @@ pub async fn run_command(
         return Err(err);
     }
 
-    let cwd = match request.cwd.as_ref() {
-        Some(cwd) => repo.resolve_path(cwd)?,
-        None => repo.root().to_path_buf(),
-    };
-
-    if !cwd.is_dir() {
-        return Err(format!(
-            "Working directory '{}' does not exist inside the repository",
-            repo.to_relative(&cwd)
-        ));
-    }
+    let cwd = resolve_working_dir(repo, request.cwd.as_deref())?;
 
     // Worked out before the job is registered, so the deadline is recorded on
     // the job itself and every later answer can report it.
@@ -479,6 +469,7 @@ mod tests {
                 &repo_settings,
                 audit,
                 std::sync::Arc::new(crate::activity::ActivityLog::new(false)),
+                std::sync::Arc::new(crate::actions::WatchedRuns::new()),
             )
             .await
             .unwrap(),

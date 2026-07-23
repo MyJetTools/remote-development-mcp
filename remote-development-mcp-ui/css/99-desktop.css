@@ -1,0 +1,9 @@
+@media (max-width: 900px) {
+    .detail-cell {
+        width: auto;
+    }
+
+    .repo-card {
+        min-width: 100%;
+    }
+}

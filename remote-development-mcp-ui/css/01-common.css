@@ -1,0 +1,53 @@
+:root {
+    --bg: #14161a;
+    --bg-panel: #1b1e24;
+    --bg-row: #202430;
+    --border: #2c3140;
+    --text: #d6dae3;
+    --text-dim: #8a92a4;
+    --accent: #6ea8fe;
+    --ok: #57c98a;
+    --warn: #e0b34a;
+    --fail: #e8833a;
+    --panic: #ff5c5c;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.dim {
+    color: var(--text-dim);
+}
+
+.mono {
+    font-family: inherit;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

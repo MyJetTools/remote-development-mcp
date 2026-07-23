@@ -1,0 +1,50 @@
+#main-panel {
+    padding: 12px 16px 32px 16px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.app-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 10px 0 14px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+
+.app-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.app-header .spacer {
+    flex: 1;
+}
+
+.live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.live-dot.stale {
+    background: var(--fail);
+}
+
+.loading-screen,
+.error-screen {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+.error-screen {
+    color: var(--fail);
+}

@@ -3,10 +3,23 @@ name = "remote-development-mcp"
 version = "0.1.0"
 edition = "2021"
 
+# The UI is a wasm crate with its own lock file and its own toolchain (`dx`), so
+# it is deliberately not a member of this workspace.
+[workspace]
+exclude = ["remote-development-mcp-ui"]
+
 [dependencies]
 mcp-server-middleware = { tag = "0.9.0", git = "https://github.com/my-ai-utils/mcp-server-middleware.git" }
 
-my-http-server = { tag = "0.9.0", git = "https://github.com/MyJetTools/my-http-server.git" }
+my-http-server = { tag = "0.9.0", git = "https://github.com/MyJetTools/my-http-server.git", features = [
+    "controllers",
+    "macros",
+    "static-files",
+] }
+
+# Wire models shared verbatim with remote-development-mcp-ui, so the JSON the
+# server writes and the JSON the browser parses can not drift apart.
+rest-api-shared = { path = "./rest-api-shared", features = ["server"] }
 
 my-ai-agent = { tag = "0.1.0", git = "https://github.com/my-ai-utils/my-ai-agent.git", features = [
     "agent",
@@ -40,11 +53,6 @@ ahash = "*"
 # so the behaviour stays the one people expect from rg.
 ignore = "*"
 regex = "*"
-
-# Console UI: what is running now, and what has run. Only started when stdout is
-# a terminal — under launchd or a pipe the server logs plain lines instead.
-ratatui = "*"
-crossterm = "*"
 
 # GitHub REST API. Same pin my-settings-reader carries, so there is one copy of
 # flurl in the graph.

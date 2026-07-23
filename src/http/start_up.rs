@@ -1,14 +1,14 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use mcp_server_middleware::McpMiddleware;
-use my_http_server::MyHttpServer;
+use my_http_server::{MyHttpServer, StaticFilesMiddleware};
 
 use crate::{
     app::{AppContext, APP_NAME, APP_VERSION},
     repo::RepoContext,
 };
 
-use super::AuthMiddleware;
+use super::{AuthMiddleware, IndexRewriteMiddleware};
 
 pub async fn start(app: &Arc<AppContext>) {
     let addr: SocketAddr = app
@@ -29,6 +29,21 @@ pub async fn start(app: &Arc<AppContext>) {
     for repo in app.repos.iter() {
         http_server.add_middleware(build_repo_endpoint(repo));
     }
+
+    // The REST surface the browser console reads.
+    http_server.add_middleware(Arc::new(super::build_controllers(app)));
+
+    http_server.add_middleware(Arc::new(IndexRewriteMiddleware::new()));
+
+    // Last, and deliberately: it is the only catch-all here, so anything
+    // registered after it would never be reached. `index.html` is served for
+    // unknown paths because the console is a single-page app — a deep link has
+    // to reach the router in the browser rather than 404 on the server.
+    http_server.add_middleware(Arc::new(
+        StaticFilesMiddleware::new()
+            .add_index_file("index.html")
+            .set_not_found_file("index.html".to_string()),
+    ));
 
     http_server.start(app.app_states.clone(), my_logger::LOGGER.clone());
 }
