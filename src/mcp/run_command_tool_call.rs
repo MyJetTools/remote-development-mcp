@@ -42,7 +42,7 @@ pub struct RunCommandInputData {
     pub env: Option<Vec<EnvVarModel>>,
 
     #[property(
-        description = "Kill the job after this many seconds, counted from when it starts. RAISE THIS FOR A LONG BUILD — the default is only one hour, and a job that overruns is killed together with every process it spawned. The ceiling is 86400 (24 hours). The value actually applied comes back as timeout_sec in the response"
+        description = "Kill the job after this many seconds, counted from when it starts. The default is 1800 (30 minutes), which fits an ordinary build; RAISE THIS when you already know the job runs longer than that, up to a ceiling of 86400 (24 hours). A job that overruns is killed together with every process it spawned. The value actually applied comes back as timeout_sec in the response"
     )]
     pub timeout_sec: Option<u64>,
 

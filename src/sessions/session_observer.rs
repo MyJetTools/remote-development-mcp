@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use mcp_server_middleware::{McpConnectionInfo, McpInputData, McpInputPayload, McpSession};
 use my_http_server::{HttpContext, HttpRequestHeaders};
-use rust_extensions::date_time::DateTimeAsMicroseconds;
 
 use super::{clamp_field, SessionInfo, SessionsRegistry};
 
@@ -49,19 +48,23 @@ impl McpConnectionInfo for SessionObserver {
         let country_iso3 = country.as_deref().and_then(to_iso3);
 
         self.registry.connected(SessionInfo {
-            session_id: clamp_field(&session.id),
+            // The id keys the row and must survive round-trip to `disconnected`
+            // verbatim, so it is not clamped — clamping is many-to-one and a
+            // lazily-adopted id can be any length. Only the displayed fields,
+            // which the client controls, are cut.
+            session_id: session.id.clone(),
             endpoint: self.endpoint.clone(),
             ip: clamp_field(&ip),
             country,
             country_iso3,
             client,
-            connected_at: DateTimeAsMicroseconds::now(),
+            created_at: session.create,
         });
     }
 
     async fn on_disconnected(&self, session: &McpSession) {
         self.registry
-            .disconnected(&self.endpoint, &clamp_field(&session.id));
+            .disconnected(&self.endpoint, &session.id, session.create);
     }
 }
 
@@ -120,7 +123,16 @@ fn read_client(body: &[u8]) -> Option<String> {
         None => name,
     };
 
-    Some(clamp_field(&rendered))
+    let rendered = clamp_field(&rendered);
+
+    // A client that sent an empty (or whitespace-only) name is nameless, not a
+    // client called "". Left as `Some("")` it would slip past the console's
+    // dash-for-absent fallback and render a blank cell.
+    if rendered.is_empty() {
+        None
+    } else {
+        Some(rendered)
+    }
 }
 
 #[cfg(test)]
@@ -174,6 +186,15 @@ mod tests {
         let body = initialize_body(r#","clientInfo":{"name":"openai-mcp"}"#);
 
         assert_eq!(read_client(body.as_bytes()), Some("openai-mcp".to_string()));
+    }
+
+    #[test]
+    fn an_empty_client_name_is_nobody_not_a_blank_client() {
+        // Would otherwise reach the console as Some(""), a blank cell the
+        // dash-for-absent fallback never catches.
+        let body = initialize_body(r#","clientInfo":{"name":"   "}"#);
+
+        assert_eq!(read_client(body.as_bytes()), None);
     }
 
     #[test]

@@ -2,10 +2,14 @@ use dioxus_utils::DataState;
 use rest_api_shared::DashboardStateResponse;
 
 use crate::dialogs::DialogState;
+use crate::states::Section;
 
 #[derive(Default)]
 pub struct AppState {
     dialog_state: DialogState,
+    /// Which section the left menu has open. Survives the poll — refreshing the
+    /// data must not throw the reader back to a default screen.
+    pub section: Section,
     /// The whole console in one value, replaced wholesale on every poll.
     pub state: DataState<DashboardStateResponse>,
     /// Guards the refresh loop against being started twice — the component body
@@ -32,6 +36,10 @@ impl AppState {
 
     pub fn close_dialog(&mut self) {
         self.dialog_state = DialogState::None;
+    }
+
+    pub fn select_section(&mut self, section: Section) {
+        self.section = section;
     }
 
     pub fn set_snapshot(&mut self, snapshot: DashboardStateResponse) {

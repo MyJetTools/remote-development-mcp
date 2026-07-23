@@ -36,10 +36,12 @@ pub struct SessionInfo {
     /// the session was adopted from an id the server never issued — there is no
     /// `initialize` on that path to carry a name.
     pub client: Option<String>,
-    /// Not rendered — the console shows the middleware's `create` instead. Kept
-    /// because the cap in the registry drops the oldest rows first and needs
-    /// something to order them by.
-    pub connected_at: DateTimeAsMicroseconds,
+    /// The middleware's `create` for this session — its identity, not a
+    /// timestamp for display. A session id can be reused (lazy creation adopts a
+    /// client-supplied id), so this is what tells the incarnation that is
+    /// leaving apart from a newer one already holding the same id: a disconnect
+    /// only removes the row when this still matches.
+    pub created_at: DateTimeAsMicroseconds,
 }
 
 /// Cuts a client-supplied value to something a table can hold, never splitting

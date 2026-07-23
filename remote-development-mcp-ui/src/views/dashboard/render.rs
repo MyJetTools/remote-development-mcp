@@ -33,16 +33,27 @@ pub fn RenderDashboard() -> Element {
     };
 
     let stale = app_state_ra.last_error.clone();
+    let section = app_state_ra.section;
 
-    rsx! {
-        crate::components::Header { state: state.clone(), stale }
-        div { class: "top-region",
+    let content = match section {
+        crate::states::Section::Projects => rsx! {
             crate::components::ReposPanel { repos: state.repos.clone() }
+        },
+        crate::states::Section::Sessions => rsx! {
             crate::components::SessionsPanel { sessions: state.sessions.clone() }
+        },
+        // Everything the server is doing, under one section: what is running,
+        // what it has run, and the CI builds it is following.
+        crate::states::Section::Tasks => rsx! {
             crate::components::JobsPanel { jobs: state.jobs.clone() }
             crate::components::ActionsPanel { actions: state.actions.clone() }
-        }
-        crate::components::HistoryPanel { history: state.history }
+            crate::components::HistoryPanel { history: state.history.clone() }
+        },
+    };
+
+    rsx! {
+        crate::components::Sidebar { state: state.clone(), active: section, stale }
+        div { class: "content", {content} }
     }
 }
 

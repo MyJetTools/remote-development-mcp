@@ -5,6 +5,7 @@ fn main() {
         .add_file("03-panels.css")
         .add_file("04-tables.css")
         .add_file("05-dialog.css")
+        .add_file("06-sidebar.css")
         .add_file("99-desktop.css")
         .compile("./public/assets/app.css");
 }

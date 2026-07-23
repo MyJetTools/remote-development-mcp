@@ -81,12 +81,6 @@ tr.row-PANIC td {
     width: 55%;
 }
 
-.history-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
 /* Sized by height so flags of different aspect ratios line up along the row —
    Nepal's pennant and Switzerland's square are the ones that give this away if
    the width is fixed instead. The border keeps a mostly-white flag from

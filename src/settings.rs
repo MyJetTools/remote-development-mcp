@@ -166,7 +166,7 @@ fn default_max_concurrent_jobs() -> usize {
 }
 
 fn default_timeout_sec() -> u64 {
-    3600
+    30 * 60
 }
 
 fn default_max_log_bytes() -> u64 {
