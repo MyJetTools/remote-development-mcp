@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{watch_actions, WatchActionsRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct WatchActionsInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Subfolder holding the repository, relative to the root. Use it when the root holds several independent git repositories. Defaults to the root itself"
     )]
@@ -66,12 +71,12 @@ pub struct WatchActionsResponse {
 }
 
 pub struct WatchActionsHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl WatchActionsHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -92,8 +97,10 @@ impl McpToolCall<WatchActionsInputData, WatchActionsResponse> for WatchActionsHa
         &self,
         model: WatchActionsInputData,
     ) -> Result<WatchActionsResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let result = watch_actions(
-            &self.repo,
+            repo,
             WatchActionsRequest {
                 path: model.path,
                 tag: model.tag,

@@ -5,8 +5,11 @@ use rust_extensions::date_time::DateTimeAsMicroseconds;
 
 use super::{Job, JobStateFilter, JobStatus, JobsRegistryInner};
 
-/// Every repository keeps its own registry, so a job id from one repository is
-/// meaningless in another and the concurrency limit is per repository too.
+/// Every project keeps its own registry, so the concurrency limit is per
+/// project. Job ids carry their project as a prefix (`my-ssh:job-000001`), which
+/// makes them unambiguous across the whole server — an endpoint serving several
+/// projects can route a job id back to its own registry without being told which
+/// project it belongs to.
 ///
 /// `parking_lot` rather than `tokio::sync`: nothing is awaited under the lock —
 /// the critical section only touches the map. The guard being `!Send` is a
@@ -17,9 +20,9 @@ pub struct JobsRegistry {
 }
 
 impl JobsRegistry {
-    pub fn new(max_concurrent_jobs: usize) -> Self {
+    pub fn new(max_concurrent_jobs: usize, project_id: String) -> Self {
         Self {
-            inner: RwLock::new(JobsRegistryInner::new(max_concurrent_jobs)),
+            inner: RwLock::new(JobsRegistryInner::new(max_concurrent_jobs, project_id)),
         }
     }
 

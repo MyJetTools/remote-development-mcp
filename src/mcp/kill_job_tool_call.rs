@@ -3,7 +3,7 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{jobs::KillSignal, repo::RepoContext, scripts::kill_job};
+use crate::{jobs::KillSignal, repo::Endpoint, scripts::kill_job};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct KillJobInputData {
@@ -35,12 +35,12 @@ pub struct KillJobResponse {
 }
 
 pub struct KillJobHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl KillJobHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -56,9 +56,12 @@ impl ToolDefinition for KillJobHandler {
 #[async_trait::async_trait]
 impl McpToolCall<KillJobInputData, KillJobResponse> for KillJobHandler {
     async fn execute_tool_call(&self, model: KillJobInputData) -> Result<KillJobResponse, String> {
+        // Routed by the job id's own project prefix — see get_job_output.
+        let (repo, job_id) = self.endpoint.resolve_job(&model.job_id)?;
+
         let signal = KillSignal::parse(model.signal.as_deref())?;
 
-        let result = kill_job(&self.repo, &model.job_id, signal)?;
+        let result = kill_job(repo, &job_id, signal)?;
 
         Ok(KillJobResponse {
             job_id: result.job.id,

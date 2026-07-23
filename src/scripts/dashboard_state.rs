@@ -18,15 +18,31 @@ use crate::{
 pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
     let now = DateTimeAsMicroseconds::now();
 
-    let mut repos = Vec::with_capacity(app.repos.len());
+    let mut repos = Vec::with_capacity(app.projects.len());
     let mut jobs = Vec::new();
 
-    for repo in app.repos.iter() {
+    for repo in app.projects.iter() {
         let repo_jobs = repo.jobs.list(JobStateFilter::All);
+
+        // Looked up rather than stored on the project: an endpoint is a view
+        // over projects, so this is a many-to-many the project side does not
+        // know about. An empty list means the project is configured but no
+        // endpoint exposes it — worth seeing on the console rather than hiding.
+        let endpoints = app
+            .endpoints
+            .iter()
+            .filter(|endpoint| {
+                endpoint
+                    .projects()
+                    .iter()
+                    .any(|exposed| exposed.name == repo.name)
+            })
+            .map(|endpoint| endpoint.url.to_string())
+            .collect();
 
         repos.push(RepoModel {
             name: repo.name.clone(),
-            mcp_path: repo.mcp_path.to_string(),
+            endpoints,
             root: repo.root().display().to_string(),
             description: repo.description.clone(),
             running_jobs: repo_jobs
@@ -63,7 +79,7 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
             .into_iter()
             .map(|session| SessionModel {
                 session_id: session.session_id.clone(),
-                repo: session.repo.clone(),
+                endpoint: session.endpoint.clone(),
                 ip: session.ip.clone(),
                 country: session.country.clone(),
                 client: session.client.clone(),

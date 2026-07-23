@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::delete_path};
+use crate::{repo::Endpoint, scripts::delete_path};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct DeletePathInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "File or folder to delete, relative to the repository root")]
     pub path: String,
 
@@ -26,12 +31,12 @@ pub struct DeletePathResponse {
 }
 
 pub struct DeletePathHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl DeletePathHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -49,8 +54,9 @@ impl McpToolCall<DeletePathInputData, DeletePathResponse> for DeletePathHandler 
         &self,
         model: DeletePathInputData,
     ) -> Result<DeletePathResponse, String> {
-        let result =
-            delete_path(&self.repo, &model.path, model.recursive.unwrap_or_default()).await?;
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
+        let result = delete_path(repo, &model.path, model.recursive.unwrap_or_default()).await?;
 
         Ok(DeletePathResponse {
             path: result.path,

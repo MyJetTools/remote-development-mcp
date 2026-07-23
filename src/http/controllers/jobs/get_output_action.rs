@@ -39,7 +39,7 @@ async fn handle_request(
 ) -> Result<HttpOkResult, HttpFailResult> {
     let repo = action
         .app
-        .repos
+        .projects
         .iter()
         .find(|repo| repo.name == input_data.repo);
 
@@ -47,7 +47,7 @@ async fn handle_request(
         Some(repo) => repo,
         None => {
             return HttpFailResult::as_not_found(
-                format!("No repository endpoint named '{}'", input_data.repo),
+                format!("No project named '{}'", input_data.repo),
                 false,
             )
             .into_err()

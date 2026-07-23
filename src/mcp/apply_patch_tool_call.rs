@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::apply_patch};
+use crate::{repo::Endpoint, scripts::apply_patch};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct ApplyPatchInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Unified diff, as produced by 'git diff'. It may touch several files. Paths are relative to the repository root"
     )]
@@ -33,12 +38,12 @@ pub struct ApplyPatchResponse {
 }
 
 pub struct ApplyPatchHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl ApplyPatchHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -57,7 +62,9 @@ impl McpToolCall<ApplyPatchInputData, ApplyPatchResponse> for ApplyPatchHandler 
         &self,
         model: ApplyPatchInputData,
     ) -> Result<ApplyPatchResponse, String> {
-        let result = apply_patch(&self.repo, &model.patch, model.path.as_deref()).await?;
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
+        let result = apply_patch(repo, &model.patch, model.path.as_deref()).await?;
 
         Ok(ApplyPatchResponse {
             applied: result.rejected.is_none(),

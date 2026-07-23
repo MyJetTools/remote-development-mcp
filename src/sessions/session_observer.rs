@@ -13,18 +13,18 @@ use super::{clamp_field, SessionInfo, SessionsRegistry};
 /// Nothing here is trusted for anything — it is shown, not acted on.
 const COUNTRY_HEADERS: [&str; 3] = ["cf-ipcountry", "x-country-code", "x-country"];
 
-/// Reports the sessions of one repository endpoint into the shared registry.
+/// Reports the sessions of one endpoint into the shared registry.
 ///
 /// One per endpoint, because the middleware issues session ids per endpoint and
-/// the console shows which repository a client is working through.
+/// the console shows which url a client is working through.
 pub struct SessionObserver {
-    repo: String,
+    endpoint: String,
     registry: Arc<SessionsRegistry>,
 }
 
 impl SessionObserver {
-    pub fn new(repo: String, registry: Arc<SessionsRegistry>) -> Self {
-        Self { repo, registry }
+    pub fn new(endpoint: String, registry: Arc<SessionsRegistry>) -> Self {
+        Self { endpoint, registry }
     }
 }
 
@@ -45,7 +45,7 @@ impl McpConnectionInfo for SessionObserver {
 
         self.registry.connected(SessionInfo {
             session_id: clamp_field(&session.id),
-            repo: self.repo.clone(),
+            endpoint: self.endpoint.clone(),
             ip: clamp_field(&ip),
             country,
             client,
@@ -56,7 +56,7 @@ impl McpConnectionInfo for SessionObserver {
 
     async fn on_disconnected(&self, session: &McpSession) {
         self.registry
-            .disconnected(&self.repo, &clamp_field(&session.id));
+            .disconnected(&self.endpoint, &clamp_field(&session.id));
     }
 }
 

@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::read_file};
+use crate::{repo::Endpoint, scripts::read_file};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct ReadFileInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "File to read, relative to the repository root")]
     pub path: String,
 
@@ -34,12 +39,12 @@ pub struct ReadFileResponse {
 }
 
 pub struct ReadFileHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl ReadFileHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -57,8 +62,10 @@ impl McpToolCall<ReadFileInputData, ReadFileResponse> for ReadFileHandler {
         &self,
         model: ReadFileInputData,
     ) -> Result<ReadFileResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let result = read_file(
-            &self.repo,
+            repo,
             &model.path,
             model.offset.map(|offset| offset as usize),
             model.limit.map(|limit| limit as usize),

@@ -50,12 +50,23 @@ async fn main() {
 
     let app = Arc::new(app);
 
-    for repo in app.repos.iter() {
+    for project in app.projects.iter() {
+        println!("Project '{}' -> {}", project.name, project.root().display());
+    }
+
+    // Printed after the projects, and listing them by id: a project missing from
+    // every line here is configured but reachable through nothing, which is easy
+    // to do and invisible otherwise.
+    for endpoint in app.endpoints.iter() {
         println!(
-            "Serving '{}' at {} -> {}",
-            repo.name,
-            repo.mcp_path,
-            repo.root().display()
+            "Serving {} -> {}",
+            endpoint.url,
+            endpoint
+                .projects()
+                .iter()
+                .map(|project| project.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         );
     }
 
@@ -67,7 +78,9 @@ async fn main() {
     tokio::spawn(crate::actions::run_poller(
         app.watched_runs.clone(),
         app.activity.clone(),
-        app.repos.iter().find_map(|repo| repo.github_token.clone()),
+        app.projects
+            .iter()
+            .find_map(|project| project.github_token.clone()),
     ));
 
     crate::http::start(&app).await;

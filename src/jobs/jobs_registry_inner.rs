@@ -22,14 +22,18 @@ const MAX_STORED_COMMAND_LINE: usize = 512;
 pub(super) struct JobsRegistryInner {
     jobs: AHashMap<String, Job>,
     max_concurrent_jobs: usize,
+    /// Prefixed onto every id this registry hands out, so a job id identifies
+    /// its project as well as the job.
+    project_id: String,
     next_id: u64,
 }
 
 impl JobsRegistryInner {
-    pub(super) fn new(max_concurrent_jobs: usize) -> Self {
+    pub(super) fn new(max_concurrent_jobs: usize, project_id: String) -> Self {
         Self {
             jobs: AHashMap::new(),
             max_concurrent_jobs,
+            project_id,
             next_id: 1,
         }
     }
@@ -54,7 +58,11 @@ impl JobsRegistryInner {
             ));
         }
 
-        let id = format!("job-{:06}", self.next_id);
+        // The log files keep the bare sequence number: `logs_dir` is already the
+        // project's own folder, so repeating the project in every file name
+        // would be noise — and `:` reads as a path separator to some tooling.
+        let local_id = format!("job-{:06}", self.next_id);
+        let id = format!("{}:{}", self.project_id, local_id);
         self.next_id += 1;
 
         let job = Job {
@@ -68,8 +76,8 @@ impl JobsRegistryInner {
             started_at: now,
             finished_at: None,
             timeout_sec,
-            stdout_log: logs_dir.join(format!("{}.stdout.log", id)),
-            stderr_log: logs_dir.join(format!("{}.stderr.log", id)),
+            stdout_log: logs_dir.join(format!("{}.stdout.log", local_id)),
+            stderr_log: logs_dir.join(format!("{}.stderr.log", local_id)),
         };
 
         self.jobs.insert(id, job.clone());
@@ -209,19 +217,19 @@ mod tests {
 
     #[test]
     fn ids_are_sequential_and_sortable() {
-        let mut inner = JobsRegistryInner::new(10);
+        let mut inner = JobsRegistryInner::new(10, "test".to_string());
 
         let first = register(&mut inner).unwrap();
         let second = register(&mut inner).unwrap();
 
-        assert_eq!(first.id, "job-000001");
-        assert_eq!(second.id, "job-000002");
+        assert_eq!(first.id, "test:job-000001");
+        assert_eq!(second.id, "test:job-000002");
         assert!(first.id < second.id);
     }
 
     #[test]
     fn concurrency_limit_is_enforced() {
-        let mut inner = JobsRegistryInner::new(2);
+        let mut inner = JobsRegistryInner::new(2, "test".to_string());
 
         register(&mut inner).unwrap();
         register(&mut inner).unwrap();
@@ -233,7 +241,7 @@ mod tests {
 
     #[test]
     fn finishing_a_job_frees_its_slot() {
-        let mut inner = JobsRegistryInner::new(1);
+        let mut inner = JobsRegistryInner::new(1, "test".to_string());
 
         let job = register(&mut inner).unwrap();
 
@@ -251,7 +259,7 @@ mod tests {
 
     #[test]
     fn completed_job_keeps_its_result() {
-        let mut inner = JobsRegistryInner::new(4);
+        let mut inner = JobsRegistryInner::new(4, "test".to_string());
 
         let job = register(&mut inner).unwrap();
 
@@ -271,7 +279,7 @@ mod tests {
 
     #[test]
     fn list_filters_by_state() {
-        let mut inner = JobsRegistryInner::new(4);
+        let mut inner = JobsRegistryInner::new(4, "test".to_string());
 
         let finished = register(&mut inner).unwrap();
         let running = register(&mut inner).unwrap();
@@ -297,7 +305,7 @@ mod tests {
 
     #[test]
     fn old_finished_jobs_are_pruned_and_running_ones_are_kept() {
-        let mut inner = JobsRegistryInner::new(usize::MAX);
+        let mut inner = JobsRegistryInner::new(usize::MAX, "test".to_string());
 
         let kept_running = register(&mut inner).unwrap();
 

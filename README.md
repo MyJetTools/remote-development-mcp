@@ -10,21 +10,46 @@ it; `kill_job` stops it together with everything it spawned.
 
 ## Shape
 
-One `McpMiddleware` instance is mounted per repository, each at its own URL path
-from the settings:
+Settings have two levels: the **projects** this machine can serve, described
+once each, and the **endpoints** that expose them. An endpoint is a *view* over
+projects, not a project of its own.
 
 ```
 MyHttpServer (bind_addr)
-  ├─ AuthMiddleware              only when auth_token is set; normally absent — the proxy in front authenticates
-  ├─ McpMiddleware "/my-ssh"     tools bound to ~/RustProjects/my-jet-tools/my-ssh
-  ├─ McpMiddleware "/ca-api"     tools bound to ~/RustProjects/my-jet-tools/ca-api
+  ├─ AuthMiddleware            only when auth_token is set; normally absent — the proxy in front authenticates
+  ├─ McpMiddleware "/mcp"      my-ssh, ca-api, scratch — every tool takes `project`
+  ├─ McpMiddleware "/my-ssh"   my-ssh alone — `project` may be omitted
   └─ …
 ```
 
-There is no `repo` argument on any tool. A handler served at `/my-ssh` is
-constructed with that repository's `RepoContext` and holds no reference to any
-other root, so the isolation is structural rather than a validation step that
-could be forgotten.
+One `McpMiddleware` per endpoint, and the tool set is registered once on it no
+matter how many projects are behind it. That is the point: a client pays for the
+17 tool schemas **once per connection**, not once per repository. Three
+repositories behind one url cost one tool list; behind three urls they cost
+three.
+
+The `project` argument selects among the projects an endpoint lists — it can not
+widen them. A project this url does not list is unreachable through it even by
+passing its id, because the handlers only ever look inside that endpoint's own
+set. So a url mapped to one project is how you hand someone access to exactly
+that one, and it behaves as the per-repository endpoints did before.
+
+*Which* caller may reach *which* url is not decided here: this server has one
+optional `auth_token` for the whole port and normally none at all. Scoping a url
+to a person is the reverse proxy's job, since it owns the domain and the OAuth
+identity.
+
+Two endpoints exposing the same project share one `RepoContext`, deliberately —
+the job registry and the concurrency limit live there, so connecting through a
+second url does not hand out a second set of job slots.
+
+### Job ids carry their project
+
+`run_command` returns `my-ssh:job-000001`. Because the id names its project,
+`get_job_output`, `kill_job` and `list_jobs` take no `project` of their own: a
+build started in a dependency stays pollable after the work has moved back to
+the main project, with nothing to keep in sync. `list_jobs` without a `project`
+lists across every project of the endpoint.
 
 ### A root holding several repositories
 
@@ -94,15 +119,22 @@ streams without losing or repeating output.
 ## Setup
 
 1. `cp example-settings.yaml ~/.remote-development-mcp` and edit it. At minimum
-   list your repositories.
+   list your projects and one endpoint exposing them.
 2. `cargo run --release`
 3. Expose it with a tunnel — `cloudflared tunnel --url http://127.0.0.1:8123` or
    tailscale. Do not open the port directly.
-4. Add `https://<host>/<mcp_path>` as a custom connector.
+4. Add `https://<host>/<endpoint url>` as a custom connector.
+
+Adding a project later is one entry under `projects` plus its id on an endpoint
+that already exists — the connector is not touched, which is the other reason
+the two levels are split.
 
 Settings are read once at startup; restart to pick up changes. A bad repository
-root or a duplicated `mcp_path` stops the server coming up
-rather than turning into an endpoint that fails every call.
+root, a duplicated project id, a duplicated url, or an endpoint naming a project
+that is not configured all stop the server coming up rather than turning into an
+endpoint that fails every call. The startup log prints the projects and then the
+endpoints with the ids behind them, so a project no endpoint exposes is visible
+rather than silently unreachable.
 
 `git` needs to be installed — `apply_patch`, `list_dir`'s gitignore filtering,
 `repo_info` and the `git` tool shell out to it. `search` does **not** need
@@ -154,8 +186,17 @@ every command start, finish and refusal is then appended as a JSON line —
 including refusals, since a run of those is what an attempt to get around the
 allowlist looks like. With no path set, nothing is written.
 
-**`delete_path` is off** unless a repository sets `allow_delete: true`. It is the
-one tool here that git cannot undo.
+**`delete_path` is off** unless a project sets `allow_delete: true`. It is the
+one tool here that git cannot undo. Checked when the tool runs rather than by
+leaving it unregistered, because one endpoint can serve several projects and the
+tool list is shared by all of them.
+
+**An endpoint can not be talked out of its project set.** The `project` argument
+is looked up only in the set the url was configured with, so a project served
+elsewhere on the machine is not reachable by naming it. On an endpoint serving
+more than one, a missing or unknown `project` is an error listing what is
+available — never a default, since guessing there is `write_file` landing in the
+wrong repository.
 
 ## Development
 
@@ -167,7 +208,9 @@ cargo fmt --check
 
 The tests cover the invariants worth being sure about: path confinement against
 `..`, symlinks, dangling symlinks and prefix-sharing siblings; allowlist
-refusals; the full job lifecycle — a long command polled through to its exit
-code with the output reassembled from cursors and compared byte for byte —
-plus timeout and kill producing `timed_out` and `killed` rather than a bare
-`exited`.
+refusals; endpoint resolution — that a project the url does not list is refused,
+that an omitted `project` is an error where it would be ambiguous, and that a
+job id routes itself by its own prefix; the full job lifecycle — a long command
+polled through to its exit code with the output reassembled from cursors and
+compared byte for byte — plus timeout and kill producing `timed_out` and
+`killed` rather than a bare `exited`.

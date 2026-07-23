@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     jobs::OutputStream,
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{get_job_output, JobOutputRequest},
 };
 
@@ -75,12 +75,12 @@ pub struct GetJobOutputResponse {
 }
 
 pub struct GetJobOutputHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl GetJobOutputHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -100,17 +100,21 @@ impl McpToolCall<GetJobOutputInputData, GetJobOutputResponse> for GetJobOutputHa
         &self,
         model: GetJobOutputInputData,
     ) -> Result<GetJobOutputResponse, String> {
+        // No `project` argument: the job id carries its own, so a build started
+        // in one project stays pollable after the work has moved to another.
+        let (repo, job_id) = self.endpoint.resolve_job(&model.job_id)?;
+
         let stream = OutputStream::parse(model.stream.as_deref())?;
 
         let request = JobOutputRequest {
-            job_id: model.job_id,
+            job_id,
             stream,
             stdout_cursor: model.stdout_cursor.unwrap_or_default(),
             stderr_cursor: model.stderr_cursor.unwrap_or_default(),
             max_bytes: model.max_bytes,
         };
 
-        let result = get_job_output(&self.repo, request).await?;
+        let result = get_job_output(repo, request).await?;
 
         let now = rust_extensions::date_time::DateTimeAsMicroseconds::now();
 

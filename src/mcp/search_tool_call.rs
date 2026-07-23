@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{search, SearchRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct SearchInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "Regular expression to look for")]
     pub pattern: String,
 
@@ -52,12 +57,12 @@ pub struct SearchResponse {
 }
 
 pub struct SearchHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl SearchHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -72,6 +77,8 @@ impl ToolDefinition for SearchHandler {
 #[async_trait::async_trait]
 impl McpToolCall<SearchInputData, SearchResponse> for SearchHandler {
     async fn execute_tool_call(&self, model: SearchInputData) -> Result<SearchResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let request = SearchRequest {
             pattern: model.pattern,
             path: model.path,
@@ -80,7 +87,7 @@ impl McpToolCall<SearchInputData, SearchResponse> for SearchHandler {
             ignore_case: model.ignore_case.unwrap_or_default(),
         };
 
-        let result = search(&self.repo, request).await?;
+        let result = search(repo, request).await?;
 
         Ok(SearchResponse {
             matches: result

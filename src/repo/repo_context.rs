@@ -7,24 +7,24 @@ use crate::{
     activity::ActivityLog,
     audit::AuditLog,
     jobs::JobsRegistry,
-    settings::{RepoSettings, SettingsModel},
+    settings::{ProjectSettings, SettingsModel},
 };
 
 use super::{resolve_inside_root, CommandPolicy};
 
-/// Everything one repository endpoint is allowed to touch.
+/// One project: everything tools are allowed to touch inside a single
+/// repository.
 ///
-/// Each MCP endpoint gets its own `RepoContext`, and its tool handlers hold
-/// nothing else. That is what makes the isolation structural rather than a
-/// matter of validating a `repo` argument on every call: a handler mounted at
-/// `/my-ssh` has no reference to any other repository's root to begin with.
+/// A project is built once per machine and shared by every endpoint that
+/// exposes it, which is deliberate — two URLs onto the same repository must see
+/// the same jobs and share its concurrency limit, otherwise the limit is dodged
+/// by connecting twice. Which projects a caller can name at all is decided by
+/// the endpoint they reached; see [`super::Endpoint`].
 pub struct RepoContext {
-    /// `McpMiddleware::new` wants a `&'static str`, and these paths come from a
-    /// config file, so the string is leaked once here at startup. Bounded: it
-    /// happens exactly once per configured repository, never per request.
-    pub mcp_path: &'static str,
-
-    /// Short name used in the audit trail and as the log folder name.
+    /// The `id` from the settings. Used as the job-id prefix, the log folder
+    /// name, the audit key and the label the console shows.
+    ///
+    /// Not the GitHub repository name — that lives on `WatchedRun`.
     pub name: String,
 
     /// Free-form note from the settings, shown to the client as part of the
@@ -53,40 +53,31 @@ pub struct RepoContext {
 impl RepoContext {
     pub async fn new(
         settings: &SettingsModel,
-        repo: &RepoSettings,
+        project: &ProjectSettings,
         audit: Arc<AuditLog>,
         activity: Arc<ActivityLog>,
         watched_runs: Arc<crate::actions::WatchedRuns>,
     ) -> Result<Self, String> {
-        let mcp_path = repo.mcp_path.trim().to_string();
+        let name = validate_id(&project.id)?;
 
-        if !mcp_path.starts_with('/') {
-            return Err(format!(
-                "Repository mcp_path '{}' must start with '/'",
-                mcp_path
-            ));
-        }
+        let root = expand_home(&project.root);
 
-        let root = expand_home(&repo.root);
-
-        // Fail at startup rather than serving an endpoint whose every call would
+        // Fail at startup rather than serving a project whose every call would
         // fail: a mistyped root is a configuration error, not a runtime one.
         let root = PathBuf::from(&root).canonicalize().map_err(|err| {
             format!(
-                "Repository root '{}' (mcp_path '{}') can not be resolved. Err: {}",
-                repo.root, mcp_path, err
+                "Root '{}' of project '{}' can not be resolved. Err: {}",
+                project.root, name, err
             )
         })?;
 
         if !root.is_dir() {
             return Err(format!(
-                "Repository root '{}' (mcp_path '{}') is not a directory",
+                "Root '{}' of project '{}' is not a directory",
                 root.display(),
-                mcp_path
+                name
             ));
         }
-
-        let name = name_from_mcp_path(&mcp_path);
 
         let logs_dir = PathBuf::from(expand_home(&settings.logs_path)).join(&name);
 
@@ -98,30 +89,29 @@ impl RepoContext {
             )
         })?;
 
-        let command_mode = match repo.command_mode {
+        let command_mode = match project.command_mode {
             Some(command_mode) => command_mode,
             None => settings.command_mode,
         };
 
-        let command_allowlist = match repo.command_allowlist.as_ref() {
+        let command_allowlist = match project.command_allowlist.as_ref() {
             Some(command_allowlist) => command_allowlist.clone(),
             None => settings.command_allowlist.clone(),
         };
 
         Ok(Self {
-            mcp_path: Box::leak(mcp_path.into_boxed_str()),
+            jobs: JobsRegistry::new(settings.max_concurrent_jobs, name.clone()),
             name,
-            description: repo.description.clone(),
+            description: project.description.clone(),
             root,
             command_policy: CommandPolicy::new(command_mode, command_allowlist),
-            jobs: JobsRegistry::new(settings.max_concurrent_jobs),
             audit,
             activity,
             watched_runs,
             logs_dir,
             default_timeout_sec: settings.default_timeout_sec,
             max_log_bytes: settings.max_log_bytes,
-            allow_delete: repo.allow_delete,
+            allow_delete: project.allow_delete,
             github_token: settings.github_token.clone(),
         })
     }
@@ -273,16 +263,38 @@ pub fn expand_home(src: &str) -> String {
     format!("{}/{}", home.trim_end_matches('/'), &src[2..])
 }
 
-/// `/my-ssh` -> `my-ssh`, `/group/my-ssh` -> `group_my-ssh`. Used as a folder
-/// name, so it must not reintroduce path separators.
-fn name_from_mcp_path(mcp_path: &str) -> String {
-    let name = mcp_path.trim_matches('/').replace('/', "_");
+/// A project id is not decoration: it is joined onto `logs_path` as a directory
+/// name and it prefixes every job id, so it is restricted to characters that can
+/// not turn either into something else.
+///
+/// `/` and `..` would let a mistyped id write logs outside `logs_path`, and `:`
+/// is what separates the project from the job number inside a job id — an id
+/// containing one would make job ids ambiguous to parse.
+fn validate_id(id: &str) -> Result<String, String> {
+    let id = id.trim();
 
-    if name.is_empty() {
-        "root".to_string()
-    } else {
-        name
+    if id.is_empty() {
+        return Err("A project id can not be empty".to_string());
     }
+
+    let allowed = id
+        .chars()
+        .all(|itm| itm.is_ascii_alphanumeric() || itm == '.' || itm == '_' || itm == '-');
+
+    if !allowed {
+        return Err(format!(
+            "Project id '{}' may only contain letters, digits, '.', '_' and '-'. It becomes a \
+             folder name under logs_path and the prefix of every job id",
+            id
+        ));
+    }
+
+    // Allowed by the charset above, but it still names the parent directory.
+    if id == "." || id == ".." {
+        return Err(format!("Project id '{}' is not a usable folder name", id));
+    }
+
+    Ok(id.to_string())
 }
 
 #[cfg(test)]
@@ -302,16 +314,26 @@ mod tests {
     }
 
     #[test]
-    fn derives_a_filesystem_safe_name() {
-        assert_eq!(name_from_mcp_path("/my-ssh"), "my-ssh");
-        assert_eq!(name_from_mcp_path("/group/my-ssh"), "group_my-ssh");
-        assert_eq!(name_from_mcp_path("/"), "root");
+    fn rejects_ids_that_would_escape_the_logs_folder() {
+        assert_eq!(validate_id("my-ssh").unwrap(), "my-ssh");
+        assert_eq!(validate_id(" my-ssh ").unwrap(), "my-ssh");
+
+        // Would write logs outside logs_path.
+        assert!(validate_id("../etc").is_err());
+        assert!(validate_id("group/my-ssh").is_err());
+        assert!(validate_id("..").is_err());
+
+        // Would make a job id ambiguous to split.
+        assert!(validate_id("my:ssh").is_err());
+
+        assert!(validate_id("").is_err());
+        assert!(validate_id("   ").is_err());
     }
 
     async fn test_repo(name: &str) -> Arc<RepoContext> {
         use crate::{
             audit::AuditLog,
-            settings::{CommandMode, RepoSettings, SettingsModel},
+            settings::{CommandMode, ProjectSettings, SettingsModel},
         };
 
         let base = std::env::temp_dir()
@@ -327,7 +349,8 @@ mod tests {
         let settings = SettingsModel {
             bind_addr: "127.0.0.1:0".to_string(),
             auth_token: Some("t".to_string()),
-            repos: Vec::new(),
+            projects: Vec::new(),
+            endpoints: Vec::new(),
             command_mode: CommandMode::Allowlist,
             command_allowlist: Vec::new(),
             max_concurrent_jobs: 1,
@@ -338,8 +361,8 @@ mod tests {
             github_token: None,
         };
 
-        let repo_settings = RepoSettings {
-            mcp_path: format!("/{}", name),
+        let project_settings = ProjectSettings {
+            id: name.to_string(),
             root: root.to_string_lossy().to_string(),
             description: None,
             command_mode: None,
@@ -352,7 +375,7 @@ mod tests {
         Arc::new(
             RepoContext::new(
                 &settings,
-                &repo_settings,
+                &project_settings,
                 audit,
                 std::sync::Arc::new(crate::activity::ActivityLog::new()),
                 std::sync::Arc::new(crate::actions::WatchedRuns::new()),

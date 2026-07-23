@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::write_file};
+use crate::{repo::Endpoint, scripts::write_file};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct WriteFileInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "File to write, relative to the repository root")]
     pub path: String,
 
@@ -29,12 +34,12 @@ pub struct WriteFileResponse {
 }
 
 pub struct WriteFileHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl WriteFileHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -52,8 +57,10 @@ impl McpToolCall<WriteFileInputData, WriteFileResponse> for WriteFileHandler {
         &self,
         model: WriteFileInputData,
     ) -> Result<WriteFileResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let bytes_written = write_file(
-            &self.repo,
+            repo,
             &model.path,
             &model.content,
             model.create_dirs.unwrap_or_default(),

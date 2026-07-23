@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{create_release, CreateReleaseRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct CreateReleaseInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Service to release, when the repository holds several — the tag becomes '{service}-{version}'. Leave it out when the repository is one service, and the tag is the bare version"
     )]
@@ -58,12 +63,12 @@ pub struct CreateReleaseResponse {
 }
 
 pub struct CreateReleaseHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl CreateReleaseHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -86,8 +91,10 @@ impl McpToolCall<CreateReleaseInputData, CreateReleaseResponse> for CreateReleas
         &self,
         model: CreateReleaseInputData,
     ) -> Result<CreateReleaseResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let result = create_release(
-            &self.repo,
+            repo,
             CreateReleaseRequest {
                 service: model.service,
                 version: model.version,

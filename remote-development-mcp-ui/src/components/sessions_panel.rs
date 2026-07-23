@@ -21,7 +21,8 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                             th { "country" }
                             th { "ip" }
                             th { "client" }
-                            th { "repo" }
+                            th { "proto" }
+                            th { "endpoint" }
                             th { "session id" }
                             th { "connected" }
                         }
@@ -34,11 +35,12 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                                 let connected = render_duration(session.age_sec);
 
                                 rsx! {
-                                    tr { key: "{session.repo}/{session.session_id}",
+                                    tr { key: "{session.endpoint}/{session.session_id}",
                                         td { class: "nowrap", "{country}" }
                                         td { class: "nowrap", "{session.ip}" }
                                         td { class: "truncate", "{client}" }
-                                        td { class: "nowrap", "{session.repo}" }
+                                        td { class: "dim nowrap", "{session.protocol_version}" }
+                                        td { class: "nowrap", "{session.endpoint}" }
                                         td { class: "dim truncate", "{session.session_id}" }
                                         td { class: "dim nowrap", "{connected} ago" }
                                     }

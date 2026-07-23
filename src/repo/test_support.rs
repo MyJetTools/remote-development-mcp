@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     audit::AuditLog,
-    settings::{CommandMode, RepoSettings, SettingsModel},
+    settings::{CommandMode, ProjectSettings, SettingsModel},
 };
 
 use super::RepoContext;
@@ -43,7 +43,8 @@ pub async fn build_test_repo(name: &str, options: TestRepoOptions) -> Arc<RepoCo
     let settings = SettingsModel {
         bind_addr: "127.0.0.1:0".to_string(),
         auth_token: Some("test-token".to_string()),
-        repos: Vec::new(),
+        projects: Vec::new(),
+        endpoints: Vec::new(),
         command_mode: options.command_mode,
         command_allowlist: options.command_allowlist,
         max_concurrent_jobs: 4,
@@ -54,8 +55,8 @@ pub async fn build_test_repo(name: &str, options: TestRepoOptions) -> Arc<RepoCo
         github_token: None,
     };
 
-    let repo_settings = RepoSettings {
-        mcp_path: format!("/{}", name),
+    let repo_settings = ProjectSettings {
+        id: name.to_string(),
         root: root.to_string_lossy().to_string(),
         description: None,
         command_mode: None,

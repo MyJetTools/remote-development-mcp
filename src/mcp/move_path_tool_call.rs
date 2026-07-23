@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::move_path};
+use crate::{repo::Endpoint, scripts::move_path};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct MovePathInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "File or folder to move, relative to the repository root")]
     pub from: String,
 
@@ -24,12 +29,12 @@ pub struct MovePathResponse {
 }
 
 pub struct MovePathHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl MovePathHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -47,7 +52,9 @@ impl McpToolCall<MovePathInputData, MovePathResponse> for MovePathHandler {
         &self,
         model: MovePathInputData,
     ) -> Result<MovePathResponse, String> {
-        let result = move_path(&self.repo, &model.from, &model.to).await?;
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
+        let result = move_path(repo, &model.from, &model.to).await?;
 
         Ok(MovePathResponse {
             from: result.from,

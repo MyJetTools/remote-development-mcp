@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{clean_cargo_targets, format_bytes, CleanCargoTargetsRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct CleanCargoTargetsInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Subtree to clean under, relative to the repository root. Defaults to the whole repository"
     )]
@@ -54,12 +59,12 @@ pub struct CleanCargoTargetsResponse {
 }
 
 pub struct CleanCargoTargetsHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl CleanCargoTargetsHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -83,8 +88,10 @@ impl McpToolCall<CleanCargoTargetsInputData, CleanCargoTargetsResponse>
         &self,
         model: CleanCargoTargetsInputData,
     ) -> Result<CleanCargoTargetsResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let result = clean_cargo_targets(
-            &self.repo,
+            repo,
             CleanCargoTargetsRequest {
                 path: model.path,
                 dry_run: model.dry_run.unwrap_or_default(),

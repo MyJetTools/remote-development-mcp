@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{edit_file, EditFileRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct EditFileInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(description = "File to edit, relative to the repository root")]
     pub path: String,
 
@@ -37,12 +42,12 @@ pub struct EditFileResponse {
 }
 
 pub struct EditFileHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl EditFileHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -62,8 +67,10 @@ impl McpToolCall<EditFileInputData, EditFileResponse> for EditFileHandler {
         &self,
         model: EditFileInputData,
     ) -> Result<EditFileResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let replaced = edit_file(
-            &self.repo,
+            repo,
             EditFileRequest {
                 path: &model.path,
                 old_string: &model.old_string,

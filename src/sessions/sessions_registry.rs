@@ -30,20 +30,20 @@ impl SessionsRegistry {
     /// A session appeared.
     ///
     /// Keyed by endpoint as well as by id, because the middleware issues ids per
-    /// endpoint: two repositories can hand out the same id without either
+    /// endpoint: two of them can hand out the same id without either
     /// knowing, and a shared key would let one overwrite the other.
     pub fn connected(&self, session: SessionInfo) {
         let mut sessions = self.sessions.lock();
 
-        sessions.insert(key_of(&session.repo, &session.session_id), session);
+        sessions.insert(key_of(&session.endpoint, &session.session_id), session);
 
         prune(&mut sessions);
     }
 
     /// A session is gone. Removing one that is not there is not an error: the
     /// cap below may already have dropped it.
-    pub fn disconnected(&self, repo: &str, session_id: &str) {
-        self.sessions.lock().remove(&key_of(repo, session_id));
+    pub fn disconnected(&self, endpoint: &str, session_id: &str) {
+        self.sessions.lock().remove(&key_of(endpoint, session_id));
     }
 
     /// Newest first — the order the console draws.
@@ -67,8 +67,8 @@ impl Default for SessionsRegistry {
     }
 }
 
-fn key_of(repo: &str, session_id: &str) -> String {
-    format!("{}\u{0}{}", repo, session_id)
+fn key_of(endpoint: &str, session_id: &str) -> String {
+    format!("{}\u{0}{}", endpoint, session_id)
 }
 
 /// Drops the oldest sessions past the cap. Oldest rather than newest: a flood
@@ -99,10 +99,10 @@ mod tests {
 
     use rust_extensions::date_time::DateTimeAsMicroseconds;
 
-    fn session(repo: &str, id: &str) -> SessionInfo {
+    fn session(endpoint: &str, id: &str) -> SessionInfo {
         SessionInfo {
             session_id: id.to_string(),
-            repo: repo.to_string(),
+            endpoint: endpoint.to_string(),
             ip: "10.0.0.1".to_string(),
             country: Some("DE".to_string()),
             client: Some("claude-code".to_string()),
@@ -136,7 +136,7 @@ mod tests {
 
         let left = registry.all();
         assert_eq!(left.len(), 1);
-        assert_eq!(left[0].repo, "other");
+        assert_eq!(left[0].endpoint, "other");
     }
 
     #[test]

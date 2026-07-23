@@ -14,9 +14,10 @@ const MAX_FIELD_CHARS: usize = 120;
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
     pub session_id: String,
-    /// Repository endpoint the session was opened against. Sessions are
-    /// per-endpoint, so one client working on two repositories is two sessions.
-    pub repo: String,
+    /// Url the session was opened against. Sessions are per-endpoint, so a
+    /// client connected to two endpoints is two sessions — but one session can
+    /// reach every project its endpoint exposes.
+    pub endpoint: String,
     /// Real client IP, already resolved through `X-Forwarded-For`.
     pub ip: String,
     /// Whatever the proxy in front reported, when it reports anything.
@@ -81,7 +82,7 @@ mod tests {
 
         let session = SessionInfo {
             session_id: "s".to_string(),
-            repo: "r".to_string(),
+            endpoint: "r".to_string(),
             ip: "127.0.0.1".to_string(),
             country: None,
             client: None,

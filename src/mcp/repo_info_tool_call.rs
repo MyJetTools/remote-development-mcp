@@ -3,10 +3,15 @@ use std::sync::Arc;
 use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{repo::RepoContext, scripts::repo_info};
+use crate::{repo::Endpoint, scripts::repo_info};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct RepoInfoInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Subfolder to describe, relative to the repository root. Use it when the root holds several independent git repositories — 'my-ssh' then describes that library. Defaults to the root itself"
     )]
@@ -51,12 +56,12 @@ pub struct RepoInfoResponse {
 }
 
 pub struct RepoInfoHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl RepoInfoHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -75,7 +80,9 @@ impl McpToolCall<RepoInfoInputData, RepoInfoResponse> for RepoInfoHandler {
         &self,
         model: RepoInfoInputData,
     ) -> Result<RepoInfoResponse, String> {
-        let info = repo_info(&self.repo, model.path.as_deref()).await?;
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
+        let info = repo_info(repo, model.path.as_deref()).await?;
 
         Ok(RepoInfoResponse {
             root: info.root,

@@ -4,7 +4,7 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{run_command, EnvVar, RunCommandRequest},
 };
 
@@ -18,6 +18,11 @@ pub struct EnvVarModel {
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct RunCommandInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Binary to start, for example 'cargo'. Unless the repository runs in passthrough mode this must be a bare name with no path"
     )]
@@ -91,12 +96,12 @@ pub struct RunCommandResponse {
 }
 
 pub struct RunCommandHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl RunCommandHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -116,6 +121,8 @@ impl McpToolCall<RunCommandInputData, RunCommandResponse> for RunCommandHandler 
         &self,
         model: RunCommandInputData,
     ) -> Result<RunCommandResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let env = match model.env {
             Some(env) => env
                 .into_iter()
@@ -136,7 +143,7 @@ impl McpToolCall<RunCommandInputData, RunCommandResponse> for RunCommandHandler 
             wait_sec: model.wait_sec,
         };
 
-        let result = run_command(&self.repo, request).await?;
+        let result = run_command(repo, request).await?;
 
         Ok(RunCommandResponse {
             job_id: result.job.id,

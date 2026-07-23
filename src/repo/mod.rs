@@ -6,3 +6,5 @@ pub mod test_support;
 pub use path_confinement::*;
 mod repo_context;
 pub use repo_context::*;
+mod endpoint;
+pub use endpoint::*;

@@ -12,7 +12,7 @@ bind_addr: 127.0.0.1:8123
 # something other than that proxy.
 # auth_token: "generate-a-long-random-string"
 
-# Default policy, overridable per repository below.
+# Default policy, overridable per project below.
 # allowlist  — only the binaries listed may be started
 # passthrough — any binary may be started, still confined to the repository root
 command_mode: allowlist
@@ -30,8 +30,9 @@ command_allowlist:
   - git
   - rg
 
-# Per repository, per repository — a repo can occupy all of its own slots
-# without affecting the others.
+# Per project — one can occupy all of its own slots without affecting the
+# others. Counted on the project, not on the endpoint, so connecting through a
+# second url does not hand out a second set of slots.
 max_concurrent_jobs: 4
 
 # Applied to jobs that do not ask for a timeout of their own.
@@ -52,20 +53,47 @@ logs_path: ~/.remote-development-mcp-logs
 # start, finish and refusal is then appended as one JSON line.
 # audit_log_path: ~/.remote-development-mcp-audit.log
 
-# One MCP endpoint per repository. Connect a client to
-# https://<your-tunnel>/<mcp_path> and it gets tools bound to that repository
-# and nothing else.
-repos:
-  - mcp_path: /remote-development-mcp
+# Every repository this machine can serve, described once. Adding one here is
+# the whole job — no client-side registration, because it shows up under the
+# endpoints that already list it.
+#
+# The id is not decoration: it names the log folder, prefixes every job id, and
+# is what the `project` argument of a tool call has to match. Letters, digits,
+# '.', '_' and '-' only.
+projects:
+  - id: remote-development-mcp
     root: ~/RustProjects/my-jet-tools/remote-development-mcp
     description: "The MCP server itself."
 
-  - mcp_path: /my-ssh
+  - id: my-ssh
     root: ~/RustProjects/my-jet-tools/my-ssh
 
-  # A repository can loosen or tighten the defaults on its own.
-  - mcp_path: /scratch
+  # A project can loosen or tighten the defaults on its own.
+  - id: scratch
     root: ~/RustProjects/scratch
     description: "Throwaway experiments."
     command_mode: passthrough
     allow_delete: true
+
+# The urls to serve. An endpoint is a *view* over projects, not a project of its
+# own — which is what lets one connection reach several repositories while the
+# tool schemas are sent once instead of once per repository.
+#
+# Connect a client to https://<your-tunnel>/<url>. A project this endpoint does
+# not list can not be reached through it, even by passing its id — so handing
+# someone a url that maps to one project is how you give access to just that one.
+endpoints:
+  # Everything, for your own work: dependencies are reachable in the same
+  # conversation, and the tool set is still loaded once.
+  - url: /mcp
+    description: "Everything on this machine."
+    projects:
+      - remote-development-mcp
+      - my-ssh
+      - scratch
+
+  # A url onto a single project. `project` may be omitted on calls through it,
+  # and nothing else on the machine is nameable.
+  - url: /my-ssh
+    projects:
+      - my-ssh

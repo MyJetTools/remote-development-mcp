@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{run_git, GitCommandRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct GitInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Git arguments, one per element — the subcommand and its flags. For example [\"status\", \"--short\"], [\"log\", \"-5\", \"--oneline\"], or [\"commit\", \"-m\", \"message\"]"
     )]
@@ -37,12 +42,12 @@ pub struct GitResponse {
 }
 
 pub struct GitHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl GitHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -60,8 +65,10 @@ impl ToolDefinition for GitHandler {
 #[async_trait::async_trait]
 impl McpToolCall<GitInputData, GitResponse> for GitHandler {
     async fn execute_tool_call(&self, model: GitInputData) -> Result<GitResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let result = run_git(
-            &self.repo,
+            repo,
             GitCommandRequest {
                 args: model.args,
                 cwd: model.cwd,

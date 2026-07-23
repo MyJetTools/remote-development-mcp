@@ -4,10 +4,15 @@ use mcp_server_middleware::*;
 use rust_extensions::date_time::DateTimeAsMicroseconds;
 use serde::{Deserialize, Serialize};
 
-use crate::{jobs::JobStateFilter, repo::RepoContext, scripts::list_jobs};
+use crate::{jobs::JobStateFilter, repo::Endpoint, scripts::list_jobs};
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct ListJobsInputData {
+    #[property(
+        description = "Narrow to one project. Omit to list the jobs of every project on this endpoint"
+    )]
+    pub project: Option<String>,
+
     #[property(
         enum: ["all", "running", "finished"],
         description: "Which jobs to return. Defaults to all"
@@ -53,17 +58,19 @@ pub struct JobModel {
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct ListJobsResponse {
-    #[property(description = "Jobs known for this repository, oldest first")]
+    #[property(
+        description = "Known jobs, oldest first. Each job_id carries the project it belongs to"
+    )]
     pub jobs: Vec<JobModel>,
 }
 
 pub struct ListJobsHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl ListJobsHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -71,9 +78,9 @@ impl ToolDefinition for ListJobsHandler {
     const FUNC_NAME: &'static str = "list_jobs";
 
     const DESCRIPTION: &'static str =
-        "Lists the jobs this repository knows about, running and recently finished. Useful to pick \
-         up a build started earlier, or to see what is occupying the concurrency limit when \
-         run_command reports there is no free slot.";
+        "Lists known jobs, running and recently finished, across every project of this endpoint \
+         unless narrowed to one. Useful to pick up a build started earlier, or to see what is \
+         occupying the concurrency limit when run_command reports there is no free slot.";
 }
 
 #[async_trait::async_trait]
@@ -82,11 +89,28 @@ impl McpToolCall<ListJobsInputData, ListJobsResponse> for ListJobsHandler {
         &self,
         model: ListJobsInputData,
     ) -> Result<ListJobsResponse, String> {
+        // The one tool where leaving `project` out is not ambiguous: listing is
+        // read-only, and "what is running right now" is usually asked about the
+        // whole endpoint rather than one repository.
+        let projects = match model.project.as_deref() {
+            Some(project) => vec![self.endpoint.resolve(Some(project))?],
+            None => self.endpoint.projects().iter().collect(),
+        };
+
         let filter = JobStateFilter::parse(model.state.as_deref())?;
 
         let now = DateTimeAsMicroseconds::now();
 
-        let jobs = list_jobs(&self.repo, filter)
+        let mut jobs: Vec<crate::jobs::Job> = projects
+            .into_iter()
+            .flat_map(|project| list_jobs(project, filter))
+            .collect();
+
+        // Merged from several registries, so re-sorted the way one registry
+        // would have returned them: oldest first.
+        jobs.sort_by_key(|job| job.started_at.unix_microseconds);
+
+        let jobs = jobs
             .into_iter()
             .map(|job| JobModel {
                 job_id: job.id.clone(),

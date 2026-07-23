@@ -1,11 +1,14 @@
 use my_http_utils::macros::MyHttpObjectStructure;
 use serde::{Deserialize, Serialize};
 
-/// One configured repository endpoint.
+/// One configured project.
 #[derive(Serialize, Deserialize, MyHttpObjectStructure, Clone, Debug, PartialEq)]
 pub struct RepoModel {
     pub name: String,
-    pub mcp_path: String,
+    /// Urls this project is reachable through. Several, because an endpoint is
+    /// a view over projects rather than a property of one — and empty when the
+    /// project is configured but no endpoint exposes it, which is worth seeing.
+    pub endpoints: Vec<String>,
     pub root: String,
     pub description: Option<String>,
     pub running_jobs: usize,
@@ -57,7 +60,9 @@ pub struct ActionRunModel {
 #[derive(Serialize, Deserialize, MyHttpObjectStructure, Clone, Debug, PartialEq)]
 pub struct SessionModel {
     pub session_id: String,
-    pub repo: String,
+    /// The url the client connected to. Sessions belong to an endpoint, not to
+    /// a project — one session can reach every project that endpoint exposes.
+    pub endpoint: String,
     pub ip: String,
     pub country: Option<String>,
     pub client: Option<String>,

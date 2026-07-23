@@ -5,7 +5,7 @@ use my_http_server::{MyHttpServer, StaticFilesMiddleware};
 
 use crate::{
     app::{AppContext, APP_NAME, APP_VERSION},
-    repo::RepoContext,
+    repo::{Endpoint, RepoContext},
     sessions::{SessionObserver, SessionsRegistry},
 };
 
@@ -27,8 +27,8 @@ pub async fn start(app: &Arc<AppContext>) {
         http_server.add_middleware(Arc::new(AuthMiddleware::new(auth_token.clone())));
     }
 
-    for repo in app.repos.iter() {
-        http_server.add_middleware(build_repo_endpoint(repo, &app.sessions));
+    for endpoint in app.endpoints.iter() {
+        http_server.add_middleware(build_endpoint(endpoint, &app.sessions));
     }
 
     // The REST surface the browser console reads.
@@ -49,30 +49,31 @@ pub async fn start(app: &Arc<AppContext>) {
     http_server.start(app.app_states.clone(), my_logger::LOGGER.clone());
 }
 
-/// One MCP endpoint per repository.
+/// One MCP endpoint per configured url, serving the projects that url exposes.
 ///
-/// Every handler registered here is constructed with this repository's context
-/// and nothing else, which is what makes the confinement structural: a tool
-/// served at `/my-ssh` holds no reference to any other repository's root, so
-/// there is no `repo` argument to get wrong or to forge.
-fn build_repo_endpoint(
-    repo: &Arc<RepoContext>,
+/// The tool set is registered once here no matter how many projects are behind
+/// it — which is the point: a client pays for these schemas once per connection,
+/// not once per repository. Which projects a call may name is fixed by the
+/// `Endpoint` the handlers hold, so a project this url does not list can not be
+/// reached through it even by passing its id.
+fn build_endpoint(
+    endpoint: &Arc<Endpoint>,
     sessions: &Arc<SessionsRegistry>,
 ) -> Arc<McpMiddleware> {
     let mut mcp = McpMiddleware::new(
-        repo.mcp_path,
+        endpoint.url,
         APP_NAME,
         APP_VERSION,
-        build_instructions(repo),
+        build_instructions(endpoint),
     );
 
-    crate::mcp::register_tools(&mut mcp, repo);
+    crate::mcp::register_tools(&mut mcp, endpoint);
 
     // The middleware owns the truth about which sessions exist — it is what
     // creates them and what sweeps them — so the console reads its events
     // rather than inferring anything from request traffic.
     mcp.register_connection_info(Arc::new(SessionObserver::new(
-        repo.name.clone(),
+        endpoint.url.to_string(),
         sessions.clone(),
     )));
 
@@ -80,29 +81,71 @@ fn build_repo_endpoint(
 }
 
 /// `McpMiddleware::new` takes `&'static str`, and these are built from settings
-/// at runtime, so the string is leaked. Bounded: once per configured
-/// repository, at startup, never per request.
-fn build_instructions(repo: &Arc<RepoContext>) -> &'static str {
-    let description = match repo.description.as_ref() {
-        Some(description) => format!("{}\n\n", description),
-        None => String::new(),
-    };
+/// at runtime, so the string is leaked. Bounded: once per configured endpoint,
+/// at startup, never per request.
+///
+/// The project list is generated rather than configured, so it can not drift
+/// from what the endpoint actually serves. It is also the only place a client
+/// learns which ids exist — cheaper than a discovery tool, which would cost a
+/// round trip at the start of every conversation.
+fn build_instructions(endpoint: &Arc<Endpoint>) -> &'static str {
+    let mut instructions = String::new();
 
-    let instructions = format!(
-        "{}Tools here operate on the '{}' repository on a remote development machine. Every path \
-         argument to a file tool is relative to the repository root, and one resolving outside it \
-         is refused. Note that run_command is different: the binary is checked against an \
-         allowlist, but its arguments are not path-checked, so treat it as running trusted build \
-         tooling, not as a confined sandbox.\n\n\
+    if let Some(description) = endpoint.description.as_ref() {
+        instructions.push_str(description);
+        instructions.push_str("\n\n");
+    }
+
+    instructions.push_str(
+        "Tools here operate on repositories checked out on a remote development machine.\n\n",
+    );
+
+    if endpoint.is_single_project() {
+        let only = &endpoint.projects()[0];
+
+        instructions.push_str(&format!(
+            "This endpoint serves one project, '{}'{}. The `project` argument can be left out.\n\n",
+            only.name,
+            describe(only)
+        ));
+    } else {
+        instructions.push_str(
+            "Every tool takes a `project` argument naming which repository to work in. Available:\n",
+        );
+
+        for project in endpoint.projects() {
+            instructions.push_str(&format!("- {}{}\n", project.name, describe(project)));
+        }
+
+        instructions.push_str(
+            "\nPass it on every call — there is no default, and a call without it is refused \
+             rather than guessed at.\n\n",
+        );
+    }
+
+    instructions.push_str(
+        "Every path argument to a file tool is relative to that project's root, and one resolving \
+         outside it is refused. Note that run_command is different: the binary is checked against \
+         an allowlist, but its arguments are not path-checked, so treat it as running trusted \
+         build tooling, not as a confined sandbox.\n\n\
          Builds and tests are asynchronous. `run_command` returns a job_id immediately (and the \
-         finished result inline if the command was quick). Poll a long build with `get_job_output` \
-         using the cursors it returns — each call resumes exactly where the previous one stopped, \
-         so no output is missed. `kill_job` stops a build together with every process it started.\n\n\
+         finished result inline if the command was quick). A job id carries its project \
+         ('my-ssh:job-000001'), so `get_job_output`, `list_jobs` and `kill_job` need no `project` \
+         of their own — a build started in one project can be polled after the work has moved \
+         back to another. Poll a long build with `get_job_output` using the cursors it returns — \
+         each call resumes exactly where the previous one stopped, so no output is missed. \
+         `kill_job` stops a build together with every process it started.\n\n\
          Start with `repo_info` to see the branch, how dirty the tree is, and which workspace \
          crates can be built or tested on their own. Use `search` to navigate; it is far cheaper \
          than listing directories.",
-        description, repo.name
     );
 
     Box::leak(instructions.into_boxed_str())
+}
+
+fn describe(project: &Arc<RepoContext>) -> String {
+    match project.description.as_ref() {
+        Some(description) => format!(" — {}", description.trim()),
+        None => String::new(),
+    }
 }

@@ -4,12 +4,17 @@ use mcp_server_middleware::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repo::RepoContext,
+    repo::Endpoint,
     scripts::{list_dir, ListDirRequest},
 };
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
 pub struct ListDirInputData {
+    #[property(
+        description = "Project to work in. Can be omitted only on an endpoint that serves a single project"
+    )]
+    pub project: Option<String>,
+
     #[property(
         description = "Folder to list, relative to the repository root. Defaults to the root itself"
     )]
@@ -54,12 +59,12 @@ pub struct ListDirResponse {
 }
 
 pub struct ListDirHandler {
-    repo: Arc<RepoContext>,
+    endpoint: Arc<Endpoint>,
 }
 
 impl ListDirHandler {
-    pub fn new(repo: Arc<RepoContext>) -> Self {
-        Self { repo }
+    pub fn new(endpoint: Arc<Endpoint>) -> Self {
+        Self { endpoint }
     }
 }
 
@@ -75,6 +80,8 @@ impl ToolDefinition for ListDirHandler {
 #[async_trait::async_trait]
 impl McpToolCall<ListDirInputData, ListDirResponse> for ListDirHandler {
     async fn execute_tool_call(&self, model: ListDirInputData) -> Result<ListDirResponse, String> {
+        let repo = self.endpoint.resolve(model.project.as_deref())?;
+
         let request = ListDirRequest {
             path: model.path,
             recursive: model.recursive.unwrap_or_default(),
@@ -82,7 +89,7 @@ impl McpToolCall<ListDirInputData, ListDirResponse> for ListDirHandler {
             respect_gitignore: model.respect_gitignore.unwrap_or(true),
         };
 
-        let result = list_dir(&self.repo, request).await?;
+        let result = list_dir(repo, request).await?;
 
         Ok(ListDirResponse {
             entries: result

@@ -232,7 +232,7 @@ mod tests {
 
     use crate::{
         audit::AuditLog,
-        settings::{CommandMode, RepoSettings, SettingsModel},
+        settings::{CommandMode, ProjectSettings, SettingsModel},
     };
 
     async fn test_repo(name: &str) -> Arc<RepoContext> {
@@ -248,7 +248,8 @@ mod tests {
         let settings = SettingsModel {
             bind_addr: "127.0.0.1:0".to_string(),
             auth_token: Some("test-token".to_string()),
-            repos: Vec::new(),
+            projects: Vec::new(),
+            endpoints: Vec::new(),
             command_mode: CommandMode::Allowlist,
             command_allowlist: Vec::new(),
             max_concurrent_jobs: 1,
@@ -259,8 +260,8 @@ mod tests {
             github_token: None,
         };
 
-        let repo_settings = RepoSettings {
-            mcp_path: format!("/{}", name),
+        let repo_settings = ProjectSettings {
+            id: name.to_string(),
             root: root.to_string_lossy().to_string(),
             description: None,
             command_mode: None,
