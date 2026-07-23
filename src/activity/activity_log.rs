@@ -61,7 +61,12 @@ mod tests {
     use super::*;
 
     fn event(subject: &str) -> ActivityEvent {
-        ActivityEvent::tool_call("repo".to_string(), subject.to_string(), "{}".to_string())
+        ActivityEvent::tool_call(
+            "repo".to_string(),
+            subject.to_string(),
+            "{}".to_string(),
+            None,
+        )
     }
 
     #[test]

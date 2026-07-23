@@ -39,36 +39,53 @@ pub struct ActivityEvent {
     pub subject: String,
     /// Parameters, or the outcome.
     pub detail: String,
+    /// How long the thing took, once it is known. A tool call and a job carry
+    /// it; a panic or a state change of a remote CI run have no duration to
+    /// speak of and leave it `None`.
+    pub duration_sec: Option<f64>,
 }
 
 impl ActivityEvent {
-    pub fn tool_call(repo: String, tool: String, params: String) -> Self {
+    pub fn tool_call(
+        repo: String,
+        tool: String,
+        params: String,
+        duration_sec: Option<f64>,
+    ) -> Self {
         Self {
             moment: DateTimeAsMicroseconds::now(),
             kind: ActivityKind::ToolCall,
             repo,
             subject: tool,
             detail: params,
+            duration_sec,
         }
     }
 
-    pub fn tool_failed(repo: String, tool: String, error: String) -> Self {
+    pub fn tool_failed(
+        repo: String,
+        tool: String,
+        error: String,
+        duration_sec: Option<f64>,
+    ) -> Self {
         Self {
             moment: DateTimeAsMicroseconds::now(),
             kind: ActivityKind::ToolFailed,
             repo,
             subject: tool,
             detail: error,
+            duration_sec,
         }
     }
 
-    pub fn job_finished(repo: String, job_id: String, outcome: String) -> Self {
+    pub fn job_finished(repo: String, job_id: String, outcome: String, duration_sec: f64) -> Self {
         Self {
             moment: DateTimeAsMicroseconds::now(),
             kind: ActivityKind::JobFinished,
             repo,
             subject: job_id,
             detail: outcome,
+            duration_sec: Some(duration_sec),
         }
     }
 
@@ -79,6 +96,7 @@ impl ActivityEvent {
             repo,
             subject: label,
             detail: outcome,
+            duration_sec: None,
         }
     }
 
@@ -95,6 +113,7 @@ impl ActivityEvent {
             repo: String::new(),
             subject: location,
             detail,
+            duration_sec: None,
         }
     }
 
@@ -115,8 +134,12 @@ mod tests {
 
     #[test]
     fn renders_only_the_time_of_day() {
-        let event =
-            ActivityEvent::tool_call("r".to_string(), "search".to_string(), "{}".to_string());
+        let event = ActivityEvent::tool_call(
+            "r".to_string(),
+            "search".to_string(),
+            "{}".to_string(),
+            None,
+        );
 
         let time = event.time_of_day();
 

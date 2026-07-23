@@ -181,5 +181,6 @@ fn to_history_model(event: ActivityEvent) -> HistoryEntryModel {
         repo: event.repo,
         subject: event.subject,
         detail: event.detail,
+        duration_sec: event.duration_sec,
     }
 }

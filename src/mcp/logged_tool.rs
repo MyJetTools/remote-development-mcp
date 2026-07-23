@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use mcp_server_middleware::*;
+use rust_extensions::date_time::DateTimeAsMicroseconds;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
@@ -62,20 +63,31 @@ where
 
         let project = self.project_of(params.as_ref());
 
-        self.activity.push(ActivityEvent::tool_call(
-            project.clone(),
-            TInner::FUNC_NAME.to_string(),
-            render_params(params.as_ref()),
-        ));
+        // Timed across the call and logged once it returns, so the history line
+        // carries how long the call took. A long-running command is not this
+        // duration — `run_command` returns a job id at once and the build's own
+        // duration arrives later on its `JobFinished` line.
+        let started = DateTimeAsMicroseconds::now();
 
         let result = self.inner.execute_tool_call(model).await;
 
-        if let Err(err) = result.as_ref() {
-            self.activity.push(ActivityEvent::tool_failed(
+        let duration_sec = (DateTimeAsMicroseconds::now().unix_microseconds
+            - started.unix_microseconds) as f64
+            / 1_000_000.0;
+
+        match result.as_ref() {
+            Ok(_) => self.activity.push(ActivityEvent::tool_call(
+                project,
+                TInner::FUNC_NAME.to_string(),
+                render_params(params.as_ref()),
+                Some(duration_sec),
+            )),
+            Err(err) => self.activity.push(ActivityEvent::tool_failed(
                 project,
                 TInner::FUNC_NAME.to_string(),
                 clamp(err),
-            ));
+                Some(duration_sec),
+            )),
         }
 
         result

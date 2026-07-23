@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 use rest_api_shared::HistoryEntryModel;
 
+use super::render_precise_duration;
+
 #[component]
 pub fn HistoryPanel(history: Vec<HistoryEntryModel>) -> Element {
     rsx! {
@@ -22,6 +24,10 @@ pub fn HistoryPanel(history: Vec<HistoryEntryModel>) -> Element {
                                     // to spot — the whole row carries the colour.
                                     let row_class = format!("row-{}", entry.kind);
                                     let kind_class = format!("kind kind-{}", entry.kind);
+                                    let duration = match entry.duration_sec {
+                                        Some(seconds) => render_precise_duration(seconds),
+                                        None => "—".to_string(),
+                                    };
 
                                     rsx! {
                                         tr { key: "{index}-{entry.moment}", class: "{row_class}",
@@ -29,6 +35,7 @@ pub fn HistoryPanel(history: Vec<HistoryEntryModel>) -> Element {
                                             td { class: "{kind_class} nowrap", "{entry.kind}" }
                                             td { class: "dim nowrap", "{entry.repo}" }
                                             td { class: "nowrap", "{entry.subject}" }
+                                            td { class: "dim nowrap", "{duration}" }
                                             td { class: "detail-cell truncate", title: "{entry.detail}", "{entry.detail}" }
                                         }
                                     }

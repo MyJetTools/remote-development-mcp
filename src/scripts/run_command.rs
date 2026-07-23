@@ -271,14 +271,14 @@ async fn supervise_job(
             repo.name.clone(),
             job_id.clone(),
             format!(
-                "{} — {} in {:.1}s",
+                "{} — {}",
                 command_line,
                 match exit_code {
                     Some(code) => format!("{} {}", status.as_str(), code),
                     None => status.as_str().to_string(),
                 },
-                duration_sec
             ),
+            duration_sec,
         ));
 
     repo.audit

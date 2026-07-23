@@ -40,6 +40,10 @@ pub struct HistoryEntryModel {
     pub repo: String,
     pub subject: String,
     pub detail: String,
+    /// How long it took — a synchronous tool call's own time, or a finished
+    /// job's run time. Absent for entries with no duration to report, such as a
+    /// panic or a CI state change.
+    pub duration_sec: Option<f64>,
 }
 
 /// A GitHub Actions run the server is following.
