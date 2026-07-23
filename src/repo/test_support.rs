@@ -68,8 +68,13 @@ pub async fn build_test_repo(name: &str, options: TestRepoOptions) -> Arc<RepoCo
     });
 
     Arc::new(
-        RepoContext::new(&settings, &repo_settings, audit)
-            .await
-            .unwrap(),
+        RepoContext::new(
+            &settings,
+            &repo_settings,
+            audit,
+            std::sync::Arc::new(crate::activity::ActivityLog::new(false)),
+        )
+        .await
+        .unwrap(),
     )
 }

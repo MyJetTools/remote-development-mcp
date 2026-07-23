@@ -16,6 +16,8 @@ mod list_dir_tool_call;
 pub use list_dir_tool_call::*;
 mod list_jobs_tool_call;
 pub use list_jobs_tool_call::*;
+mod logged_tool;
+pub use logged_tool::*;
 mod move_path_tool_call;
 pub use move_path_tool_call::*;
 mod read_file_tool_call;

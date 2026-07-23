@@ -271,6 +271,23 @@ async fn supervise_job(
         None => 0.0,
     };
 
+    // The tool call returned long ago — a build finishing is the one event the
+    // console would otherwise never show.
+    repo.activity
+        .push(crate::activity::ActivityEvent::job_finished(
+            repo.name.clone(),
+            job_id.clone(),
+            format!(
+                "{} — {} in {:.1}s",
+                command_line,
+                match exit_code {
+                    Some(code) => format!("{} {}", status.as_str(), code),
+                    None => status.as_str().to_string(),
+                },
+                duration_sec
+            ),
+        ));
+
     repo.audit
         .command_finished(AuditCommandFinished {
             repo: &repo.name,
@@ -453,9 +470,14 @@ mod tests {
         let audit = Arc::new(AuditLog::disabled());
 
         Arc::new(
-            RepoContext::new(&settings, &repo_settings, audit)
-                .await
-                .unwrap(),
+            RepoContext::new(
+                &settings,
+                &repo_settings,
+                audit,
+                std::sync::Arc::new(crate::activity::ActivityLog::new(false)),
+            )
+            .await
+            .unwrap(),
         )
     }
 

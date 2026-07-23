@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    activity::ActivityLog,
     audit::AuditLog,
     jobs::JobsRegistry,
     settings::{RepoSettings, SettingsModel},
@@ -35,6 +36,8 @@ pub struct RepoContext {
     pub command_policy: CommandPolicy,
     pub jobs: JobsRegistry,
     pub audit: Arc<AuditLog>,
+    /// Feed the console renders — every tool call and job completion lands here.
+    pub activity: Arc<ActivityLog>,
     pub logs_dir: PathBuf,
     pub default_timeout_sec: u64,
     pub max_log_bytes: u64,
@@ -46,6 +49,7 @@ impl RepoContext {
         settings: &SettingsModel,
         repo: &RepoSettings,
         audit: Arc<AuditLog>,
+        activity: Arc<ActivityLog>,
     ) -> Result<Self, String> {
         let mcp_path = repo.mcp_path.trim().to_string();
 
@@ -105,6 +109,7 @@ impl RepoContext {
             command_policy: CommandPolicy::new(command_mode, command_allowlist),
             jobs: JobsRegistry::new(settings.max_concurrent_jobs),
             audit,
+            activity,
             logs_dir,
             default_timeout_sec: settings.default_timeout_sec,
             max_log_bytes: settings.max_log_bytes,
@@ -335,9 +340,14 @@ mod tests {
         let audit = Arc::new(AuditLog::disabled());
 
         Arc::new(
-            RepoContext::new(&settings, &repo_settings, audit)
-                .await
-                .unwrap(),
+            RepoContext::new(
+                &settings,
+                &repo_settings,
+                audit,
+                std::sync::Arc::new(crate::activity::ActivityLog::new(false)),
+            )
+            .await
+            .unwrap(),
         )
     }
 

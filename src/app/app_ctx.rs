@@ -3,6 +3,7 @@ use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use rust_extensions::AppStates;
 
 use crate::{
+    activity::ActivityLog,
     audit::AuditLog,
     repo::{expand_home, RepoContext},
     settings::SettingsModel,
@@ -15,6 +16,9 @@ pub struct AppContext {
     pub app_states: Arc<AppStates>,
     pub repos: Vec<Arc<RepoContext>>,
     pub bind_addr: String,
+    /// What the console renders. Also the plain-output sink when there is no
+    /// terminal to draw on.
+    pub activity: Arc<ActivityLog>,
     /// `None` means the server does not authenticate at all and trusts whatever
     /// reaches it — the normal setup, where a reverse proxy in front terminates
     /// authentication.
@@ -26,7 +30,7 @@ impl AppContext {
     /// startup, and validated on the way. A bad repository root or a duplicated
     /// endpoint should stop the server coming up — not surface later as an
     /// endpoint that fails every call.
-    pub async fn new(settings: SettingsModel) -> Result<Self, String> {
+    pub async fn new(settings: SettingsModel, activity: Arc<ActivityLog>) -> Result<Self, String> {
         // No token configured means no authentication — see the field's note. A
         // token that is present but blank is a mistake worth catching, though,
         // since it reads as "protected" while protecting nothing.
@@ -55,7 +59,8 @@ impl AppContext {
         let mut used_paths = HashSet::new();
 
         for repo_settings in settings.repos.iter() {
-            let repo = RepoContext::new(&settings, repo_settings, audit.clone()).await?;
+            let repo =
+                RepoContext::new(&settings, repo_settings, audit.clone(), activity.clone()).await?;
 
             // Paths are matched case-insensitively by the MCP middleware, so
             // two repos differing only in case would leave one unreachable.
@@ -73,6 +78,7 @@ impl AppContext {
             app_states: Arc::new(AppStates::create_initialized()),
             repos,
             bind_addr: settings.bind_addr.clone(),
+            activity,
             // Already trimmed above, to match the presented token — which
             // `strip_bearer` trims. Storing it untrimmed would let a token with
             // stray whitespace pass startup validation and then reject every

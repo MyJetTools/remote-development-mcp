@@ -33,3 +33,15 @@ libc = "*"
 
 parking_lot = "*"
 ahash = "*"
+
+# Search is implemented in-process rather than by shelling out to `rg`, so the
+# machine needs no ripgrep installed. These are ripgrep's own libraries: `ignore`
+# is its directory walker (gitignore semantics included) and `regex` its engine,
+# so the behaviour stays the one people expect from rg.
+ignore = "*"
+regex = "*"
+
+# Console UI: what is running now, and what has run. Only started when stdout is
+# a terminal — under launchd or a pipe the server logs plain lines instead.
+ratatui = "*"
+crossterm = "*"
