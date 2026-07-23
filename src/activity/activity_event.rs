@@ -116,34 +116,4 @@ impl ActivityEvent {
             duration_sec: None,
         }
     }
-
-    /// `HH:MM:SS` — the console shows a live feed, so the date is noise.
-    pub fn time_of_day(&self) -> String {
-        let rfc3339 = self.moment.to_rfc3339();
-
-        match rfc3339.get(11..19) {
-            Some(time) => time.to_string(),
-            None => rfc3339,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn renders_only_the_time_of_day() {
-        let event = ActivityEvent::tool_call(
-            "r".to_string(),
-            "search".to_string(),
-            "{}".to_string(),
-            None,
-        );
-
-        let time = event.time_of_day();
-
-        assert_eq!(time.len(), 8, "expected HH:MM:SS, got {}", time);
-        assert_eq!(time.chars().filter(|c| *c == ':').count(), 2);
-    }
 }

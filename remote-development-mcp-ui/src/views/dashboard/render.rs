@@ -34,20 +34,21 @@ pub fn RenderDashboard() -> Element {
 
     let stale = app_state_ra.last_error.clone();
     let section = app_state_ra.section;
+    let tz = app_state_ra.time_zone();
 
     let content = match section {
         crate::states::Section::Projects => rsx! {
             crate::components::ReposPanel { repos: state.repos.clone() }
         },
         crate::states::Section::Sessions => rsx! {
-            crate::components::SessionsPanel { sessions: state.sessions.clone() }
+            crate::components::SessionsPanel { sessions: state.sessions.clone(), tz }
         },
         // Everything the server is doing, under one section: what is running,
         // what it has run, and the CI builds it is following.
         crate::states::Section::Tasks => rsx! {
             crate::components::JobsPanel { jobs: state.jobs.clone() }
             crate::components::ActionsPanel { actions: state.actions.clone() }
-            crate::components::HistoryPanel { history: state.history.clone() }
+            crate::components::HistoryPanel { history: state.history.clone(), tz }
         },
     };
 

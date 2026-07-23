@@ -25,6 +25,12 @@ flurl = { tag = "0.7.0", git = "https://github.com/MyJetTools/fl-url.git" }
 serde = { version = "*", features = ["derive"] }
 serde_json = { version = "*" }
 
+# For TimeZone / DateTimeAsMicrosecondsWithTimeZone — rendering the server's UTC
+# instants in the browser's local zone. Same tag dioxus-utils already resolves,
+# so both land on one commit; the timezone types are pure chrono arithmetic and
+# compile to wasm.
+rust-extensions = { tag = "0.1.5", git = "https://github.com/MyJetTools/rust-extensions.git" }
+
 [build-dependencies]
 ci-utils = { git = "https://github.com/MyJetTools/ci-utils.git", tag = "0.1.3" }
 

@@ -1,5 +1,6 @@
 use dioxus_utils::DataState;
 use rest_api_shared::DashboardStateResponse;
+use rust_extensions::date_time::TimeZone;
 
 use crate::dialogs::DialogState;
 use crate::states::Section;
@@ -10,6 +11,11 @@ pub struct AppState {
     /// Which section the left menu has open. Survives the poll — refreshing the
     /// data must not throw the reader back to a default screen.
     pub section: Section,
+    /// The viewer's timezone, derived from each snapshot's `server_time` against
+    /// the browser clock. `None` until the first snapshot lands; every instant
+    /// is rendered through it. Recomputed each poll so the console follows the
+    /// browser across a DST change without a reload.
+    pub time_zone: Option<TimeZone>,
     /// The whole console in one value, replaced wholesale on every poll.
     pub state: DataState<DashboardStateResponse>,
     /// Guards the refresh loop against being started twice — the component body
@@ -43,8 +49,16 @@ impl AppState {
     }
 
     pub fn set_snapshot(&mut self, snapshot: DashboardStateResponse) {
+        // Derived here, at receipt, so the browser clock it is paired with is
+        // read as close as possible to the server clock in the payload.
+        self.time_zone = Some(crate::time::timezone_from_snapshot(snapshot.server_time));
         self.state.set_value(snapshot);
         self.last_error = None;
+    }
+
+    /// The viewer's timezone, or UTC until the first snapshot has derived it.
+    pub fn time_zone(&self) -> TimeZone {
+        self.time_zone.unwrap_or_else(TimeZone::utc)
     }
 
     pub fn set_poll_error(&mut self, err: String) {

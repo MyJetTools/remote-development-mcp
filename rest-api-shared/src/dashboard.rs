@@ -24,7 +24,9 @@ pub struct JobModel {
     pub status: String,
     pub exit_code: Option<i32>,
     pub pid: Option<u32>,
-    pub started_at: String,
+    /// When it started, Unix microseconds. A number the client rebuilds with
+    /// `DateTimeAsMicroseconds::new`, not a preformatted string.
+    pub started_at: i64,
     pub duration_sec: f64,
     pub remaining_sec: Option<f64>,
     pub timeout_sec: u64,
@@ -34,8 +36,9 @@ pub struct JobModel {
 /// panic.
 #[derive(Serialize, Deserialize, MyHttpObjectStructure, Clone, Debug, PartialEq)]
 pub struct HistoryEntryModel {
-    pub moment: String,
-    pub time_of_day: String,
+    /// When it happened, Unix microseconds — rebuilt client-side with
+    /// `DateTimeAsMicroseconds::new` and rendered in the viewer's zone.
+    pub moment: i64,
     pub kind: String,
     pub repo: String,
     pub subject: String,
@@ -77,12 +80,13 @@ pub struct SessionModel {
     pub country_iso3: Option<String>,
     pub client: Option<String>,
     pub protocol_version: String,
-    pub connected_at: String,
+    /// Unix microseconds; the client rebuilds it with `DateTimeAsMicroseconds::new`.
+    pub connected_at: i64,
     pub age_sec: f64,
     /// When a request last arrived on this session — any request, `ping`
     /// included. Read live from the middleware on every poll, because it is the
     /// same value its idle sweeper decides by.
-    pub last_access_at: String,
+    pub last_access_at: i64,
     /// Seconds since that request. What the sweeper compares to the idle
     /// timeout, so a row climbing towards it is a session about to be dropped.
     pub idle_sec: f64,
@@ -98,6 +102,12 @@ pub struct DashboardStateResponse {
     pub app_name: String,
     pub version: String,
     pub bind_addr: String,
+    /// The instant this snapshot was taken, Unix microseconds (UTC). Paired with
+    /// the browser's own clock at receipt, it is what lets the console derive
+    /// the viewer's timezone and render every other instant in local wall-clock
+    /// time. A raw number the client rebuilds with `DateTimeAsMicroseconds::new`,
+    /// never a preformatted string — the server has no idea where the viewer is.
+    pub server_time: i64,
     pub uptime_sec: f64,
     pub repos: Vec<RepoModel>,
     pub sessions: Vec<SessionModel>,

@@ -71,6 +71,7 @@ pub fn read_dashboard_state(app: &Arc<AppContext>) -> DashboardStateResponse {
         app_name: APP_NAME.to_string(),
         version: APP_VERSION.to_string(),
         bind_addr: app.bind_addr.clone(),
+        server_time: now.unix_microseconds,
         uptime_sec: (now.unix_microseconds - app.started_at.unix_microseconds) as f64 / 1_000_000.0,
         repos,
         sessions: read_sessions(app, now),
@@ -140,9 +141,9 @@ fn read_sessions(app: &Arc<AppContext>, now: DateTimeAsMicroseconds) -> Vec<Sess
                 country_iso3: known.as_ref().and_then(|known| known.country_iso3.clone()),
                 client: known.as_ref().and_then(|known| known.client.clone()),
                 protocol_version: session.version.clone(),
-                connected_at: session.create.to_rfc3339(),
+                connected_at: session.create.unix_microseconds,
                 age_sec: seconds_between(session.create, now),
-                last_access_at: last_access.to_rfc3339(),
+                last_access_at: last_access.unix_microseconds,
                 idle_sec: seconds_between(last_access, now),
             });
         }
@@ -178,7 +179,7 @@ fn to_job_model(repo: &str, job: Job, now: DateTimeAsMicroseconds) -> JobModel {
         status: job.status.as_str().to_string(),
         exit_code: job.exit_code,
         pid: job.pid,
-        started_at: job.started_at.to_rfc3339(),
+        started_at: job.started_at.unix_microseconds,
         duration_sec: job.duration_sec(now),
         remaining_sec: job.remaining_sec(now),
         timeout_sec: job.timeout_sec,
@@ -187,8 +188,7 @@ fn to_job_model(repo: &str, job: Job, now: DateTimeAsMicroseconds) -> JobModel {
 
 fn to_history_model(event: ActivityEvent) -> HistoryEntryModel {
     HistoryEntryModel {
-        moment: event.moment.to_rfc3339(),
-        time_of_day: event.time_of_day(),
+        moment: event.moment.unix_microseconds,
         kind: event.kind.as_str().to_string(),
         repo: event.repo,
         subject: event.subject,

@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use rest_api_shared::SessionModel;
+use rust_extensions::date_time::TimeZone;
 
 use super::render_duration;
 
@@ -12,7 +13,7 @@ const FLAGS_BASE_URL: &str =
     "https://raw.githubusercontent.com/MyJetTools/public-assets/refs/heads/main/flags";
 
 #[component]
-pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
+pub fn SessionsPanel(sessions: Vec<SessionModel>, tz: TimeZone) -> Element {
     rsx! {
         div { class: "panel",
             div { class: "panel-head",
@@ -55,6 +56,10 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                                 // drops back to zero the moment anything arrives —
                                 // a ping included.
                                 let last_seen = render_duration(session.idle_sec);
+                                // The relative age reads at a glance; the tooltip
+                                // carries the exact local wall-clock instant.
+                                let connected_at = crate::time::local_date_time(session.connected_at, tz);
+                                let last_seen_at = crate::time::local_date_time(session.last_access_at, tz);
 
                                 rsx! {
                                     tr { key: "{session.endpoint}/{session.session_id}",
@@ -81,8 +86,8 @@ pub fn SessionsPanel(sessions: Vec<SessionModel>) -> Element {
                                         td { class: "dim nowrap", "{session.protocol_version}" }
                                         td { class: "nowrap", "{session.endpoint}" }
                                         td { class: "dim truncate", "{session.session_id}" }
-                                        td { class: "dim nowrap", "{connected} ago" }
-                                        td { class: "dim nowrap", "{last_seen} ago" }
+                                        td { class: "dim nowrap", title: "{connected_at}", "{connected} ago" }
+                                        td { class: "dim nowrap", title: "{last_seen_at}", "{last_seen} ago" }
                                     }
                                 }
                             }

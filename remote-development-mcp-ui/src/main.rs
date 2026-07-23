@@ -5,6 +5,7 @@ mod components;
 mod dialogs;
 mod models;
 mod states;
+mod time;
 mod views;
 
 use states::AppState;
