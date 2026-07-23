@@ -43,6 +43,12 @@ pub struct JobModel {
 
     #[property(description = "How long the job has been running, or how long it ran")]
     pub duration_sec: f64,
+
+    #[property(description = "The deadline this job was given, in seconds")]
+    pub timeout_sec: u64,
+
+    #[property(description = "Seconds left before it is killed. Absent once it has finished")]
+    pub remaining_sec: Option<f64>,
 }
 
 #[derive(ApplyJsonSchema, Debug, Serialize, Deserialize)]
@@ -91,6 +97,8 @@ impl McpToolCall<ListJobsInputData, ListJobsResponse> for ListJobsHandler {
                 started_at: job.started_at.to_rfc3339(),
                 finished_at: job.finished_at.map(|finished_at| finished_at.to_rfc3339()),
                 duration_sec: job.duration_sec(now),
+                timeout_sec: job.timeout_sec,
+                remaining_sec: job.remaining_sec(now),
             })
             .collect();
 

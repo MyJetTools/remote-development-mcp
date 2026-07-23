@@ -37,7 +37,7 @@ pub struct RunCommandInputData {
     pub env: Option<Vec<EnvVarModel>>,
 
     #[property(
-        description = "Kill the job after this many seconds. Defaults to the server configured timeout"
+        description = "Kill the job after this many seconds, counted from when it starts. RAISE THIS FOR A LONG BUILD — the default is only one hour, and a job that overruns is killed together with every process it spawned. The ceiling is 86400 (24 hours). The value actually applied comes back as timeout_sec in the response"
     )]
     pub timeout_sec: Option<u64>,
 
@@ -83,6 +83,11 @@ pub struct RunCommandResponse {
         description = "True when there is more output beyond what is returned here. Read the rest with get_job_output"
     )]
     pub truncated: bool,
+
+    #[property(
+        description = "The deadline this job actually got, in seconds — either what was asked for, or the server default. It is killed if it runs longer"
+    )]
+    pub timeout_sec: u64,
 }
 
 pub struct RunCommandHandler {
@@ -142,6 +147,7 @@ impl McpToolCall<RunCommandInputData, RunCommandResponse> for RunCommandHandler 
             next_stdout_cursor: result.next_stdout_cursor,
             next_stderr_cursor: result.next_stderr_cursor,
             truncated: result.has_more,
+            timeout_sec: result.job.timeout_sec,
         })
     }
 }

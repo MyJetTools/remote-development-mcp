@@ -97,6 +97,14 @@ pub async fn run_command(
         ));
     }
 
+    // Worked out before the job is registered, so the deadline is recorded on
+    // the job itself and every later answer can report it.
+    let timeout_sec = match request.timeout_sec {
+        Some(timeout_sec) => timeout_sec,
+        None => repo.default_timeout_sec,
+    }
+    .clamp(1, MAX_TIMEOUT_SEC);
+
     let now = DateTimeAsMicroseconds::now();
 
     let job = repo.jobs.try_register(
@@ -104,6 +112,7 @@ pub async fn run_command(
         repo.to_relative(&cwd),
         &repo.logs_dir,
         now,
+        timeout_sec,
     )?;
 
     let mut command = Command::new(&request.command);
@@ -169,12 +178,6 @@ pub async fn run_command(
             cwd: &job.cwd,
         })
         .await;
-
-    let timeout_sec = match request.timeout_sec {
-        Some(timeout_sec) => timeout_sec,
-        None => repo.default_timeout_sec,
-    }
-    .min(MAX_TIMEOUT_SEC);
 
     tokio::spawn(supervise_job(
         repo.clone(),

@@ -74,6 +74,17 @@ fn draw_running(frame: &mut Frame, area: ratatui::layout::Rect, running: &[Runni
                 Span::styled(job.repo.clone(), Style::default().fg(Color::Cyan)),
                 Span::raw(job.job_id.clone()),
                 Span::raw(job.command_line.clone()),
+                Span::styled(
+                    match job.remaining_sec {
+                        Some(remaining) => render_elapsed(remaining),
+                        None => "-".to_string(),
+                    },
+                    // Red once the deadline is close, so it reads at a glance.
+                    Style::default().fg(match job.remaining_sec {
+                        Some(remaining) if remaining < 60.0 => Color::Red,
+                        _ => Color::DarkGray,
+                    }),
+                ),
                 Span::styled(job.cwd.clone(), Style::default().fg(Color::DarkGray)),
             ])
         })
@@ -86,11 +97,12 @@ fn draw_running(frame: &mut Frame, area: ratatui::layout::Rect, running: &[Runni
             Constraint::Length(18),
             Constraint::Length(12),
             Constraint::Min(20),
-            Constraint::Length(20),
+            Constraint::Length(8),
+            Constraint::Length(16),
         ],
     )
     .header(
-        Row::new(vec!["elapsed", "repo", "job", "command", "cwd"]).style(
+        Row::new(vec!["elapsed", "repo", "job", "command", "left", "cwd"]).style(
             Style::default()
                 .fg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),
@@ -193,6 +205,7 @@ mod tests {
             command_line: "cargo build".to_string(),
             cwd: ".".to_string(),
             elapsed_sec: 94.0,
+            remaining_sec: Some(3506.0),
         }];
 
         let history = vec![ActivityEvent::tool_call(

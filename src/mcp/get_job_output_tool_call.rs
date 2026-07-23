@@ -64,6 +64,14 @@ pub struct GetJobOutputResponse {
 
     #[property(description = "How long the job has been running, or how long it ran")]
     pub duration_sec: f64,
+
+    #[property(description = "The deadline this job was given, in seconds")]
+    pub timeout_sec: u64,
+
+    #[property(
+        description = "Seconds left before the job is killed. Absent once it has finished. If a build needs longer than this, start it again with a bigger timeout_sec"
+    )]
+    pub remaining_sec: Option<f64>,
 }
 
 pub struct GetJobOutputHandler {
@@ -115,6 +123,8 @@ impl McpToolCall<GetJobOutputInputData, GetJobOutputResponse> for GetJobOutputHa
             next_stderr_cursor: result.next_stderr_cursor,
             truncated: result.has_more,
             duration_sec: result.job.duration_sec(now),
+            timeout_sec: result.job.timeout_sec,
+            remaining_sec: result.job.remaining_sec(now),
         })
     }
 }

@@ -38,6 +38,7 @@ impl JobsRegistryInner {
         cwd: String,
         logs_dir: &Path,
         now: DateTimeAsMicroseconds,
+        timeout_sec: u64,
     ) -> Result<Job, String> {
         let running = self.running_amount();
 
@@ -62,6 +63,7 @@ impl JobsRegistryInner {
             kill_requested: false,
             started_at: now,
             finished_at: None,
+            timeout_sec,
             stdout_log: logs_dir.join(format!("{}.stdout.log", id)),
             stderr_log: logs_dir.join(format!("{}.stderr.log", id)),
         };
@@ -197,6 +199,7 @@ mod tests {
             ".".to_string(),
             &logs_dir(),
             DateTimeAsMicroseconds::now(),
+            3600,
         )
     }
 

@@ -175,6 +175,11 @@ pub struct Job {
     pub kill_requested: bool,
     pub started_at: DateTimeAsMicroseconds,
     pub finished_at: Option<DateTimeAsMicroseconds>,
+    /// The deadline this job was given, in seconds. Carried on the job rather
+    /// than only inside the supervisor so every answer about a job can say how
+    /// long it is allowed to run — otherwise a caller watching a long build has
+    /// no way to tell whether it is about to be killed.
+    pub timeout_sec: u64,
     pub stdout_log: PathBuf,
     pub stderr_log: PathBuf,
 }
@@ -189,6 +194,20 @@ impl Job {
         let micros = until.unix_microseconds - self.started_at.unix_microseconds;
 
         micros as f64 / 1_000_000.0
+    }
+
+    /// Seconds left before the job is killed, or `None` once it has finished.
+    ///
+    /// What a caller polling a long build actually wants to know: not only how
+    /// long it has been running, but how long it still may.
+    pub fn remaining_sec(&self, now: DateTimeAsMicroseconds) -> Option<f64> {
+        if !self.status.is_running() {
+            return None;
+        }
+
+        let remaining = self.timeout_sec as f64 - self.duration_sec(now);
+
+        Some(remaining.max(0.0))
     }
 }
 

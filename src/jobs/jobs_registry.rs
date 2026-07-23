@@ -29,10 +29,11 @@ impl JobsRegistry {
         cwd: String,
         logs_dir: &Path,
         now: DateTimeAsMicroseconds,
+        timeout_sec: u64,
     ) -> Result<Job, String> {
         self.inner
             .write()
-            .try_register(command_line, cwd, logs_dir, now)
+            .try_register(command_line, cwd, logs_dir, now, timeout_sec)
     }
 
     pub fn set_pid(&self, id: &str, pid: Option<u32>) {

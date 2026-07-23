@@ -11,6 +11,9 @@ pub struct RunningJob {
     pub command_line: String,
     pub cwd: String,
     pub elapsed_sec: f64,
+    /// Seconds before the job is killed — the console shows it so a build about
+    /// to hit its deadline is visible before it dies, not after.
+    pub remaining_sec: Option<f64>,
 }
 
 /// Collects what is running right now, across every repository.
@@ -32,6 +35,7 @@ pub fn collect_running(repos: &[Arc<RepoContext>]) -> Vec<RunningJob> {
                 command_line: job.command_line.clone(),
                 cwd: job.cwd.clone(),
                 elapsed_sec: job.duration_sec(now),
+                remaining_sec: job.remaining_sec(now),
             });
         }
     }
