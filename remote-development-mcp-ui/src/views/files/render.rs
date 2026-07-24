@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use rest_api_shared::{
-    FileContentResponse, RepoModel, FILE_KIND_HTML, FILE_KIND_IMAGE, FILE_KIND_MARKDOWN,
-    FILE_KIND_PDF, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
+    FileContentResponse, RepoModel, FILE_KIND_BROWSER, FILE_KIND_HTML, FILE_KIND_IMAGE,
+    FILE_KIND_MARKDOWN, FILE_KIND_PDF, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
 };
 
 use super::{effective_repo, get_content, render_size, FilesState, FolderChildren, ROOT_PATH};
@@ -38,7 +38,7 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     // tab of their own.
     let is_framed = matches!(
         content.as_ref(),
-        Some(Ok(content)) if content.kind == FILE_KIND_HTML || content.kind == FILE_KIND_PDF
+        Some(Ok(content)) if is_framed_kind(content.kind.as_str())
     );
 
     // The same url the iframe is pointed at, so "open" shows exactly what the
@@ -127,6 +127,16 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     }
 }
 
+/// The kinds the console does not draw itself — it points a frame at the raw
+/// endpoint and lets the browser render them.
+///
+/// An html page and a pdf because the browser has a viewer for each; `browser`
+/// because the file is past the size worth decoding, and streaming it into a
+/// frame beats carrying it through json and into the dom in one piece.
+fn is_framed_kind(kind: &str) -> bool {
+    kind == FILE_KIND_HTML || kind == FILE_KIND_PDF || kind == FILE_KIND_BROWSER
+}
+
 fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) -> Element {
     let kind = content.kind.as_str();
 
@@ -182,10 +192,7 @@ fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) 
         };
     }
 
-    // A pdf goes through the same frame as an html page: the browser has a
-    // viewer for it, and the raw endpoint already labels it `application/pdf`,
-    // which is the whole of what that viewer needs to take over.
-    if kind == FILE_KIND_HTML || kind == FILE_KIND_PDF {
+    if is_framed_kind(kind) {
         return rsx! {
             // Deliberately not sandboxed. A preview has to show the page as it
             // actually behaves — script, fetch, storage and all — and every

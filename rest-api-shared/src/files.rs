@@ -56,6 +56,10 @@ pub const FILE_KIND_HTML: &str = "html";
 /// Bytes the browser renders itself, like html — but a distinct kind, because
 /// they are not the same thing to anything that reasons about the file.
 pub const FILE_KIND_PDF: &str = "pdf";
+/// Too big to decode and ship through this JSON, but small enough for the raw
+/// endpoint — so the browser fetches it and renders it itself. The console draws
+/// it in the same frame as html and pdf.
+pub const FILE_KIND_BROWSER: &str = "browser";
 pub const FILE_KIND_BINARY: &str = "binary";
 pub const FILE_KIND_TOO_BIG: &str = "too-big";
 

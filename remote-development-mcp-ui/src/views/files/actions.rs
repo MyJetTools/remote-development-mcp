@@ -11,7 +11,7 @@ use super::FilesState;
 /// renders as a broken-image glyph, which looks like a bug in the tree rather
 /// than like an extension nobody has drawn yet. Adding an icon is adding its
 /// file and one line here.
-const FILE_ICONS: [&str; 5] = ["html", "md", "pdf", "rs", "toml"];
+const FILE_ICONS: [&str; 7] = ["css", "html", "md", "pdf", "png", "rs", "toml"];
 
 const ICON_DIR: &str = "/assets/file-types";
 
@@ -196,6 +196,11 @@ mod tests {
     fn falls_back_to_the_generic_icon_for_an_extension_nobody_has_drawn() {
         assert_eq!(file_icon("Cargo.toml"), "/assets/file-types/toml.svg");
         assert_eq!(file_icon("main.RS"), "/assets/file-types/rs.svg");
+        assert_eq!(file_icon("logo.png"), "/assets/file-types/png.svg");
+
+        // Only `.png` is drawn — the other image extensions share none of its
+        // name, and this maps a name to a file rather than a kind to a picture.
+        assert_eq!(file_icon("logo.jpg"), "/assets/file-types/file.svg");
 
         assert_eq!(file_icon("build.sh"), "/assets/file-types/file.svg");
         assert_eq!(file_icon("Makefile"), "/assets/file-types/file.svg");

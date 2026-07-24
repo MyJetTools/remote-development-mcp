@@ -3,8 +3,8 @@ use std::sync::Arc;
 use my_http_server::macros::*;
 use my_http_server::*;
 use rest_api_shared::{
-    FileContentResponse, FileRequestModel, FILE_KIND_BINARY, FILE_KIND_HTML, FILE_KIND_IMAGE,
-    FILE_KIND_MARKDOWN, FILE_KIND_PDF, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
+    FileContentResponse, FileRequestModel, FILE_KIND_BINARY, FILE_KIND_BROWSER, FILE_KIND_HTML,
+    FILE_KIND_IMAGE, FILE_KIND_MARKDOWN, FILE_KIND_PDF, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
 };
 
 use crate::{app::AppContext, scripts::FilePreview};
@@ -52,6 +52,7 @@ async fn handle_request(
         FilePreview::Image => (FILE_KIND_IMAGE, None, None),
         FilePreview::Html => (FILE_KIND_HTML, None, None),
         FilePreview::Pdf => (FILE_KIND_PDF, None, None),
+        FilePreview::Browser => (FILE_KIND_BROWSER, None, None),
         FilePreview::Binary => (FILE_KIND_BINARY, None, None),
         FilePreview::TooBig => (FILE_KIND_TOO_BIG, None, None),
     };

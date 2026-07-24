@@ -59,6 +59,10 @@ pub enum FilePreview {
     Html,
     /// Fetched from the raw endpoint and handed to the browser's own viewer.
     Pdf,
+    /// Past what is worth decoding here, but still within what the raw endpoint
+    /// serves — so the browser fetches it and renders it itself, streaming it
+    /// rather than taking it through this JSON and into the dom in one piece.
+    Browser,
     /// The bytes are not valid UTF-8 and the extension names nothing the
     /// browser can render.
     Binary,
@@ -121,6 +125,23 @@ pub async fn preview_file(
     }
 
     if size_bytes > MAX_TEXT_BYTES {
+        // Between the two limits the file is not shown as text — it is handed to
+        // the browser, which fetches it from the raw endpoint and streams it
+        // instead of taking megabytes through this JSON and into the dom at
+        // once. The tier ends where `MAX_RAW_BYTES` does rather than at a number
+        // of its own: past that the raw endpoint refuses, and a frame pointed at
+        // a refusal is worse than saying "too big".
+        //
+        // A content type is the other half of the requirement. Without one the
+        // raw endpoint sends `nosniff` and nothing else, so the browser
+        // downloads the file and the frame stays blank — which looks broken,
+        // while "too big, here is a download" says the same thing plainly. To
+        // widen this tier, give the extension a content type in `CONTENT_TYPES`;
+        // that is the honest fix, not dropping this check.
+        if size_bytes <= MAX_RAW_BYTES && raw_content_type(&relative).is_some() {
+            return done(FilePreview::Browser);
+        }
+
         return done(FilePreview::TooBig);
     }
 
@@ -332,6 +353,36 @@ mod tests {
             }
             _ => panic!("expected text"),
         }
+    }
+
+    /// Past the text limit but inside the raw one, with a content type to be
+    /// served under: the browser gets it rather than the reader getting a
+    /// refusal.
+    #[tokio::test]
+    async fn a_file_too_big_for_text_is_handed_to_the_browser() {
+        let repo = build_test_repo("preview_browser", TestRepoOptions::default()).await;
+
+        let big = "x".repeat(MAX_TEXT_BYTES as usize + 1);
+        std::fs::write(repo.root().join("huge.json"), &big).unwrap();
+
+        let result = preview_file(&repo, "huge.json").await.unwrap();
+
+        assert!(matches!(result.preview, FilePreview::Browser));
+    }
+
+    /// The other half of that condition. Without a content type the raw endpoint
+    /// sends `nosniff` and nothing else, so a frame would download the file and
+    /// stay blank — "too big, here is a download" says it better.
+    #[tokio::test]
+    async fn a_big_file_with_no_content_type_is_still_too_big() {
+        let repo = build_test_repo("preview_browser_untyped", TestRepoOptions::default()).await;
+
+        let big = "x".repeat(MAX_TEXT_BYTES as usize + 1);
+        std::fs::write(repo.root().join("huge.unknownext"), &big).unwrap();
+
+        let result = preview_file(&repo, "huge.unknownext").await.unwrap();
+
+        assert!(matches!(result.preview, FilePreview::TooBig));
     }
 
     /// A file the highlighter has no grammar for is still a text file — the
