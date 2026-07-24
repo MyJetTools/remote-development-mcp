@@ -48,12 +48,6 @@ serde_json = "*"
 
 async-trait = "*"
 
-# Needed to signal a whole process group: killing a `cargo` job has to take its
-# `rustc` children with it, which `Child::kill` alone does not do. Unix only —
-# on Windows the same is done with `taskkill /T`.
-[target.'cfg(unix)'.dependencies]
-libc = "*"
-
 parking_lot = "*"
 ahash = "*"
 
@@ -81,3 +75,15 @@ pulldown-cmark = { version = "*", default-features = false, features = ["html"] 
 # with `onig`, which is a C library to build, and `fancy-regex` is pure Rust for
 # the same grammars.
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+
+# Kept last, and it has to stay last: a `[target...]` header ends `[dependencies]`
+# and every key after it joins the target table instead. Written mid-list it
+# silently made parking_lot, ahash, ignore, regex, flurl, pulldown-cmark and
+# syntect unix-only — invisible on a mac, and a broken build on the one platform
+# the section exists for.
+#
+# Needed to signal a whole process group: killing a `cargo` job has to take its
+# `rustc` children with it, which `Child::kill` alone does not do. Unix only —
+# on Windows the same is done with `taskkill /T`.
+[target.'cfg(unix)'.dependencies]
+libc = "*"
