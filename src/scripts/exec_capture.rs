@@ -68,11 +68,14 @@ pub async fn exec_capture(
             Some(_) => Stdio::piped(),
             None => Stdio::null(),
         })
-        // Its own group so the timeout path can take out anything it spawned,
-        // and kill_on_drop so a dropped future never leaves the direct child
+        // kill_on_drop so a dropped future never leaves the direct child
         // running.
-        .process_group(0)
         .kill_on_drop(true);
+
+    // Its own group so the timeout path can take out anything it spawned. On
+    // Windows the timeout path uses `taskkill /T` instead, which needs no group.
+    #[cfg(unix)]
+    command.process_group(0);
 
     let mut child = command.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {

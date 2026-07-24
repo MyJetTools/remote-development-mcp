@@ -49,7 +49,9 @@ serde_json = "*"
 async-trait = "*"
 
 # Needed to signal a whole process group: killing a `cargo` job has to take its
-# `rustc` children with it, which `Child::kill` alone does not do.
+# `rustc` children with it, which `Child::kill` alone does not do. Unix only —
+# on Windows the same is done with `taskkill /T`.
+[target.'cfg(unix)'.dependencies]
 libc = "*"
 
 parking_lot = "*"

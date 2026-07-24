@@ -120,7 +120,8 @@ streams without losing or repeating output.
 
 1. `cp example-settings.yaml ~/.remote-development-mcp` and edit it. At minimum
    list your projects and one endpoint exposing them.
-2. `cargo run --release`
+2. `cargo run --release`, from the repository root — the console under
+   `wwwroot/` is served relative to the working directory.
 3. Expose it with a tunnel — `cloudflared tunnel --url http://127.0.0.1:8123` or
    tailscale. Do not open the port directly.
 4. Add `https://<host>/<endpoint url>` as a custom connector.
@@ -140,6 +141,24 @@ rather than silently unreachable.
 `repo_info` and the `git` tool shell out to it. `search` does **not** need
 ripgrep: it uses ripgrep's libraries in-process. `create_release` needs no `gh`
 CLI either, only `github_token` in the settings.
+
+### Windows
+
+The server builds and runs natively on Windows. Two things differ:
+
+- Set `HOME` before starting — `$env:HOME = $env:USERPROFILE` in PowerShell.
+  The settings reader expands the `~` in `~/.remote-development-mcp` through
+  it, and Windows does not set it on its own. Inside the settings file itself,
+  prefer absolute paths with forward slashes (`C:/Users/you/projects/...`) so
+  nothing depends on the expansion.
+- There are no POSIX signals to deliver, so every `signal` a `kill_job` asks
+  for is the same forced tree kill via `taskkill /T /F`. `cargo` still goes
+  down together with every `rustc` it started — the outcome the process-group
+  signal produces on unix — only the graceful `TERM`/`INT` distinction is lost.
+
+The paths the tools report are `/`-separated on every platform, so a client or
+the console never sees `src\main.rs` from one machine and `src/main.rs` from
+another.
 
 ## What is actually guaranteed
 
@@ -214,3 +233,8 @@ job id routes itself by its own prefix; the full job lifecycle — a long comman
 polled through to its exit code with the output reassembled from cursors and
 compared byte for byte — plus timeout and kill producing `timed_out` and
 `killed` rather than a bare `exited`.
+
+The job-lifecycle and symlink tests are `#[cfg(unix)]`: they need `sh -c` to
+produce output slowly enough to poll, or `std::os::unix::fs::symlink`. On
+Windows they skip and the rest of the suite runs; the machinery they cover is
+platform-neutral and exercised there through the server itself.

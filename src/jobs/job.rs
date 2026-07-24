@@ -141,6 +141,7 @@ impl KillSignal {
         }
     }
 
+    #[cfg(unix)]
     pub fn as_libc(&self) -> i32 {
         match self {
             KillSignal::Term => libc::SIGTERM,

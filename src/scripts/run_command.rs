@@ -119,7 +119,9 @@ pub async fn run_command(
     }
 
     // Its own process group, so that killing the job takes the whole tree with
-    // it. Signalling `cargo` alone would leave `rustc` running.
+    // it. Signalling `cargo` alone would leave `rustc` running. On Windows the
+    // tree is taken out by `taskkill /T` instead, so no group is needed.
+    #[cfg(unix)]
     command.process_group(0);
 
     let mut child = match command.spawn() {
@@ -410,9 +412,14 @@ mod tests {
 
     use crate::{
         audit::AuditLog,
+        settings::{CommandMode, ProjectSettings, SettingsModel},
+    };
+
+    // Only the unix-gated job-machinery tests poll and kill jobs.
+    #[cfg(unix)]
+    use crate::{
         jobs::OutputStream,
         scripts::{get_job_output, kill_job, JobOutputRequest},
-        settings::{CommandMode, ProjectSettings, SettingsModel},
     };
 
     /// Builds a throwaway repository backed by a temp folder.
@@ -420,6 +427,7 @@ mod tests {
     /// Passthrough mode on purpose: these tests are about the job machinery, and
     /// they need a shell to produce output slowly enough to be polled. The
     /// allowlist itself is covered by the command policy tests.
+    #[cfg(unix)]
     async fn test_repo(name: &str) -> Arc<RepoContext> {
         build_repo(name, CommandMode::Passthrough, Vec::new()).await
     }
@@ -477,6 +485,9 @@ mod tests {
         )
     }
 
+    // Builds a `sh -c` request. The job-machinery tests that actually spawn it
+    // are unix-gated; the allowlist tests use it too but refuse before
+    // spawning, so they run everywhere.
     fn shell(script: &str) -> RunCommandRequest {
         RunCommandRequest {
             command: "sh".to_string(),
@@ -490,6 +501,7 @@ mod tests {
 
     /// Polls exactly the way a client is meant to: carry the cursors forward,
     /// keep going while the job runs, then drain whatever is left.
+    #[cfg(unix)]
     async fn poll_to_completion(repo: &Arc<RepoContext>, job_id: &str) -> (Job, String) {
         let mut stdout_cursor = 0u64;
         let mut collected = String::new();
@@ -519,6 +531,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_long_command_is_polled_to_its_exit_code_without_losing_output() {
         let repo = test_repo("polled_to_exit_code").await;
@@ -541,6 +554,7 @@ mod tests {
         assert_eq!(collected, "one\ntwo\nthree\n");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_command_finishing_inside_wait_sec_comes_back_inline() {
         let repo = test_repo("inline_result").await;
@@ -555,6 +569,7 @@ mod tests {
         assert_eq!(result.stdout, "done\n");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn stdout_and_stderr_are_captured_separately() {
         let repo = test_repo("separate_streams").await;
@@ -568,6 +583,7 @@ mod tests {
         assert_eq!(result.stderr, "to-err\n");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_job_which_overruns_its_timeout_is_reported_as_timed_out() {
         let repo = test_repo("timed_out").await;
@@ -582,6 +598,7 @@ mod tests {
         assert_eq!(job.status, JobStatus::TimedOut);
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_killed_job_is_reported_as_killed_rather_than_merely_exited() {
         let repo = test_repo("killed").await;

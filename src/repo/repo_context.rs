@@ -227,6 +227,13 @@ impl RepoContext {
             Ok(relative) => {
                 let relative = relative.to_string_lossy().to_string();
 
+                // The wire format speaks `/` on every platform; only Windows
+                // produces `\`, and there `\` can not appear inside a file
+                // name, so the rewrite is safe. On unix it would corrupt a
+                // name legitimately containing one.
+                #[cfg(windows)]
+                let relative = relative.replace('\\', "/");
+
                 if relative.is_empty() {
                     ".".to_string()
                 } else {
@@ -251,7 +258,9 @@ pub fn expand_home(src: &str) -> String {
         return src.to_string();
     }
 
-    let home = match std::env::var("HOME") {
+    // USERPROFILE is where Windows keeps what unix calls HOME; on unix HOME is
+    // always set, so the fallback never fires there.
+    let home = match std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
         Ok(home) => home,
         Err(_) => return src.to_string(),
     };
@@ -303,7 +312,9 @@ mod tests {
 
     #[test]
     fn expands_only_a_leading_tilde() {
-        let home = std::env::var("HOME").unwrap();
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .unwrap();
 
         assert_eq!(expand_home("~"), home);
         assert_eq!(expand_home("~/projects"), format!("{}/projects", home));
