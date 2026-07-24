@@ -36,7 +36,11 @@ impl Section {
     pub fn route(&self) -> crate::AppRoute {
         match self {
             Section::Projects => crate::AppRoute::ProjectsTab {},
-            Section::Files => crate::AppRoute::FilesTab {},
+            // Nothing selected: the tab itself is the address, and which file
+            // was last open is the reader's business, not the menu's.
+            Section::Files => crate::AppRoute::FilesTab {
+                selected: String::new(),
+            },
             Section::Sessions => crate::AppRoute::SessionsTab {},
             Section::Tasks => crate::AppRoute::TasksTab {},
         }
@@ -50,7 +54,7 @@ impl Section {
     pub fn from_route(route: &crate::AppRoute) -> Self {
         match route {
             crate::AppRoute::ProjectsTab {} => Section::Projects,
-            crate::AppRoute::FilesTab {} => Section::Files,
+            crate::AppRoute::FilesTab { .. } => Section::Files,
             crate::AppRoute::SessionsTab {} => Section::Sessions,
             crate::AppRoute::TasksTab {} => Section::Tasks,
         }

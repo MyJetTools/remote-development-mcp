@@ -7,9 +7,22 @@ use rest_api_shared::{
 use super::{effective_repo, get_content, render_size, FilesState, FolderChildren, ROOT_PATH};
 
 /// The file browser: the tree on the left, whatever is selected on the right.
+///
+/// `selected` arrives from the url rather than from the state below, so a file
+/// can be linked to and a reload lands back on it.
 #[component]
-pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
-    let mut cs = use_signal(FilesState::default);
+pub fn RenderFiles(repos: Vec<RepoModel>, selected: String) -> Element {
+    // Seeded from the url and from storage, once: the project last read and the
+    // folders it was left open at, plus every folder above the selected file so
+    // that it is reachable. Done in the initialiser because a render must not
+    // write, and by the first row everything is already decided.
+    let mut cs = use_signal({
+        let repos = repos.clone();
+        let selected = selected.clone();
+
+        move || FilesState::new(&repos, &selected)
+    });
+
     let cs_ra = cs.read();
 
     let repo = match effective_repo(&cs_ra, &repos) {
@@ -21,7 +34,14 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
         }
     };
 
-    let selected = cs_ra.selected.clone();
+    // A bare `/files` parses to an empty string, which is "nothing selected"
+    // rather than a file whose path is empty.
+    let selected = if selected.is_empty() {
+        None
+    } else {
+        Some(selected)
+    };
+
     let show_source = cs_ra.show_source;
 
     let content = selected
@@ -70,11 +90,17 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                             value: "{repo}",
                             // Remembered before the state is touched, so a
                             // reload comes back to the project being read
-                            // rather than to the first one configured.
+                            // rather than to the first one configured. The
+                            // selection is dropped from the url in the same
+                            // move: a path from the old project names nothing
+                            // in the new one.
                             onchange: move |evt| {
                                 let picked = evt.value();
                                 crate::web::set_selected_repo(&picked);
                                 cs.write().select_repo(picked);
+                                navigator().push(crate::AppRoute::FilesTab {
+                                    selected: String::new(),
+                                });
                             },
                             for project in repos.iter() {
                                 option {

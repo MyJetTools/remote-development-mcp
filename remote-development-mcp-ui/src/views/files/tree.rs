@@ -64,6 +64,17 @@ pub fn FolderChildren(cs: Signal<FilesState>, repo: String, path: String, depth:
     }
 }
 
+/// The file the url is pointing at, or `""` when it points at none.
+///
+/// Every other route answers `""` too: the tree is only ever drawn under
+/// `/files`, so there is no case where another route's selection could leak in.
+fn selected_path() -> String {
+    match use_route::<crate::AppRoute>() {
+        crate::AppRoute::FilesTab { selected } => selected,
+        _ => String::new(),
+    }
+}
+
 /// One row — a folder that opens and closes, or a file that can be selected.
 #[component]
 pub fn FileTreeRow(
@@ -75,9 +86,18 @@ pub fn FileTreeRow(
     let cs_ra = cs.read();
 
     let expanded = entry.is_dir && cs_ra.is_expanded(&entry.path);
-    let selected = !entry.is_dir && cs_ra.selected.as_deref() == Some(entry.path.as_str());
 
     drop(cs_ra);
+
+    // Read off the url rather than out of the state: the url is what says which
+    // file is open, and reading it here also means a row re-draws when the
+    // selection moves — including when it moves by the back button.
+    //
+    // Read into a variable first, and not behind the `&&` below: it is a hook,
+    // and short-circuiting it on a folder row would make the hook order depend
+    // on what the row happens to be.
+    let selected_path = selected_path();
+    let selected = !entry.is_dir && selected_path == entry.path;
 
     let icon = if entry.is_dir {
         folder_icon(expanded)
@@ -100,12 +120,17 @@ pub fn FileTreeRow(
             class: row_class,
             style: "{indent}",
             onclick: move |_| {
-                let mut w = cs.write();
                 if is_dir {
-                    w.toggle(&path);
-                } else {
-                    w.select_file(path.clone());
+                    cs.write().toggle(&path);
+                    return;
                 }
+
+                // Selecting is navigating: the path goes into the url, and the
+                // viewer follows from there. Nothing about the selection is
+                // written to the state.
+                navigator().push(crate::AppRoute::FilesTab {
+                    selected: path.clone(),
+                });
             },
 
             img { class: "tree-icon", src: "{icon}" }

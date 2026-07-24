@@ -17,25 +17,14 @@ const ICON_DIR: &str = "/assets/file-types";
 
 /// Which project the tree is showing.
 ///
-/// Falls back to the first configured project instead of writing a default into
-/// the state during render — a render must not write, and there is nothing to
-/// remember until the reader picks something themselves.
+/// `FilesState::new` has already restored it, so this is only the guard for a
+/// project that disappeared from the settings while the console was open:
+/// falling through to the first one beats showing a tree of errors. Reading it
+/// rather than correcting the state keeps a render from writing.
 pub fn effective_repo(cs_ra: &FilesState, repos: &[RepoModel]) -> Option<String> {
     if let Some(repo) = cs_ra.repo.as_ref() {
-        // A project can disappear from the settings between reloads; falling
-        // through to the first one beats showing a tree of errors.
         if repos.iter().any(|itm| &itm.name == repo) {
             return Some(repo.clone());
-        }
-    }
-
-    // Nothing picked in this session yet — which is every reload — so come back
-    // to whatever was being read last time. Checked against the projects the
-    // server actually serves, because the stored name can be one that has since
-    // been renamed or dropped from the settings.
-    if let Some(stored) = crate::web::get_selected_repo() {
-        if repos.iter().any(|itm| itm.name == stored) {
-            return Some(stored);
         }
     }
 
@@ -117,29 +106,35 @@ pub fn get_folder<'s>(
 }
 
 /// The selected file's kind and text.
+///
+/// Which file that is comes from the url, so the state can be holding a
+/// different one — the check is against the path rather than against "has
+/// anything been loaded", or a click on a second file would show the first
+/// file's text under the second one's name.
 pub fn get_content<'s>(
     mut cs: Signal<FilesState>,
     cs_ra: &'s FilesState,
     repo: &str,
     path: &str,
 ) -> Result<&'s FileContentResponse, Element> {
+    if !cs_ra.content_is_for(path) {
+        let repo = repo.to_string();
+        let path = path.to_string();
+
+        spawn(async move {
+            cs.write().begin_content_load(&path);
+
+            match crate::api::files::get_content(repo, path).await {
+                Ok(content) => cs.write().content.set_value(content),
+                Err(err) => cs.write().content.set_error(err.to_string()),
+            }
+        });
+
+        return Err(render_viewer_note("loading…", false));
+    }
+
     match cs_ra.content.as_ref() {
-        RenderState::None => {
-            let repo = repo.to_string();
-            let path = path.to_string();
-
-            spawn(async move {
-                cs.write().content.set_loading();
-
-                match crate::api::files::get_content(repo, path).await {
-                    Ok(content) => cs.write().content.set_value(content),
-                    Err(err) => cs.write().content.set_error(err.to_string()),
-                }
-            });
-
-            Err(render_viewer_note("loading…", false))
-        }
-        RenderState::Loading => Err(render_viewer_note("loading…", false)),
+        RenderState::None | RenderState::Loading => Err(render_viewer_note("loading…", false)),
         RenderState::Loaded(content) => Ok(content),
         RenderState::Error(err) => Err(render_viewer_note(err.as_str(), true)),
     }

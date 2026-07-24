@@ -93,7 +93,7 @@ pub fn ProjectsTab() -> Element {
 /// Two columns filling the height, each scrolling on its own — the tree must not
 /// scroll the file away, and the file must not scroll the tree.
 #[component]
-pub fn FilesTab() -> Element {
+pub fn FilesTab(selected: String) -> Element {
     let app_state = consume_context::<Signal<AppState>>();
     let app_state_ra = app_state.read();
 
@@ -104,7 +104,7 @@ pub fn FilesTab() -> Element {
     drop(app_state_ra);
 
     rsx! {
-        crate::views::files::RenderFiles { repos: state.repos }
+        crate::views::files::RenderFiles { repos: state.repos, selected }
     }
 }
 

@@ -31,8 +31,12 @@ pub enum AppRoute {
     TasksTab {},
     #[route("/projects")]
     ProjectsTab {},
-    #[route("/files")]
-    FilesTab {},
+    /// The selected file rides in the url so that a file can be linked to, and
+    /// so a reload comes back to it — the tree opens every folder above it on
+    /// the way. Empty means nothing is selected, which is what a bare `/files`
+    /// parses to.
+    #[route("/files?:selected")]
+    FilesTab { selected: String },
     #[route("/sessions")]
     SessionsTab {},
 }
