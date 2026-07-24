@@ -18,6 +18,7 @@ pub fn JobsPanel(jobs: Vec<JobModel>) -> Element {
                 span { class: "panel-count", "{running} running / {jobs.len()} total" }
             }
 
+            div { class: "panel-body",
             if jobs.is_empty() {
                 div { class: "panel-empty", "nothing has been started yet" }
             } else {
@@ -74,6 +75,7 @@ pub fn JobsPanel(jobs: Vec<JobModel>) -> Element {
                         }
                     }
                 }
+            }
             }
         }
     }

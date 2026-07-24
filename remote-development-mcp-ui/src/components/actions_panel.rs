@@ -16,6 +16,7 @@ pub fn ActionsPanel(actions: Vec<ActionRunModel>) -> Element {
                 "GitHub Actions"
                 span { class: "panel-count", "{actions.len()}" }
             }
+            div { class: "panel-body",
             table { class: "grid",
                 thead {
                     tr {
@@ -54,6 +55,7 @@ pub fn ActionsPanel(actions: Vec<ActionRunModel>) -> Element {
                         }
                     }
                 }
+            }
             }
         }
     }

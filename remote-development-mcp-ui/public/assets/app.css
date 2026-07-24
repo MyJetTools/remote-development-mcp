@@ -170,15 +170,27 @@ body {
     padding: 14px 16px 18px 16px;
 }
 
-/* A section that pins its top panels at their natural height and hands the rest
-   of the column to the last one, which scrolls inside itself (Tasks: Jobs and
-   CI stay put, History takes the remainder). */
+/* A section whose panels split the height evenly and each scroll inside
+   themselves (Tasks: Processes, CI and History get a third each). Splitting
+   rather than letting one grow is what keeps every table visible at once —
+   otherwise the long one takes the column and the others collapse to their
+   header. */
 .section-fill {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
     padding: 14px 16px 18px 16px;
+}
+
+/* `flex-basis: 0` is what makes the shares equal: without it each panel starts
+   from its own content height and the tallest keeps the most. `min-height: 0`
+   lets a panel shrink below its content so its body can scroll instead. */
+.section-fill > .panel {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .loading-screen,
@@ -204,14 +216,12 @@ body {
     margin-bottom: 0;
 }
 
-/* In a `.section-fill` column this is the panel that claims the leftover height
-   and scrolls inside itself. `min-height: 0` is what lets a flex child shrink
-   below its content instead of pushing the column taller than the viewport. */
-.panel.grow {
+/* Everything under a panel's header. In a `.section-fill` column this is what
+   scrolls, so the header stays put and the rows move under it. */
+.panel-body {
     flex: 1 1 auto;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
 }
 
 .panel-head {
@@ -367,12 +377,12 @@ tr.row-PANIC td {
     border-radius: 1px;
 }
 
-/* The scrolling body of the History panel when it grows to fill the Tasks
-   column — the head stays put, the rows scroll under it. */
-.history-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
+/* The column headers stay readable while the body scrolls under them. */
+.panel-body thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-panel);
 }
 
 .dialog-backdrop {

@@ -7,16 +7,16 @@ use super::render_precise_duration;
 #[component]
 pub fn HistoryPanel(history: Vec<HistoryEntryModel>, tz: TimeZone) -> Element {
     rsx! {
-        div { class: "panel grow",
+        div { class: "panel",
             div { class: "panel-head",
                 "History"
                 span { class: "panel-count", "{history.len()}" }
             }
 
+            div { class: "panel-body",
             if history.is_empty() {
                 div { class: "panel-empty", "nothing yet" }
             } else {
-                div { class: "history-scroll",
                     table { class: "grid",
                         tbody {
                         for (index , entry) in history.iter().enumerate() {
