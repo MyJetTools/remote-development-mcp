@@ -11,7 +11,7 @@ use crate::app::AppContext;
     route: "/api/files/v1/raw",
     controller: "Files",
     summary: "One file's bytes, for an <img> or an <iframe>",
-    description: "The only endpoint the browser fetches by itself rather than through the console's own code, because that is what an <img src> and an <iframe src> do. Served with a 'Content-Security-Policy: sandbox' header, so an html file out of a repository can not run script against this origin even when opened directly.",
+    description: "The only endpoint the browser fetches by itself rather than through the console's own code, because that is what an <img src> and an <iframe src> do. Served unsandboxed and uncached: a previewed page has to behave as it really does, and the file behind the url is a working copy that changes under it.",
     input_data: "FileRequestModel",
     result: [
         {status_code: 200, description: "The file's bytes"},
@@ -50,12 +50,13 @@ async fn handle_request(
     HttpOutput::from_builder()
         .set_content(result.bytes)
         .set_content_type_opt(content_type)
-        // The file comes out of a repository, which is content this server does
-        // not vouch for. `sandbox` drops it into an opaque origin with scripts
-        // off, so an html page here can not read the console's origin — the
-        // iframe carries the same restriction, this covers opening the url
-        // directly.
-        .add_header("Content-Security-Policy", "sandbox")
+        // No `Content-Security-Policy: sandbox` here on purpose: a preview has
+        // to show the page as it actually behaves, and this console serves the
+        // repositories of the machine it runs on over the local network — the
+        // html is the reader's own working copy. The iframe showing it is
+        // unsandboxed for the same reason; if that changes, both have to change
+        // together.
+        //
         // Without a content type the browser would otherwise sniff one, which is
         // how a text file gets executed as html.
         .add_header("X-Content-Type-Options", "nosniff")

@@ -135,17 +135,19 @@ fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) 
 
     if kind == FILE_KIND_HTML {
         return rsx! {
+            // Deliberately not sandboxed. A preview has to show the page as it
+            // actually behaves — script, fetch, storage and all — and every
+            // partial sandbox breaks something a real page needs.
+            //
+            // This is a development console for the repositories on this machine,
+            // reached over the local network, so the page in the frame is the
+            // reader's own working copy rather than anything hostile. Under a
+            // different exposure this is the line to reconsider: a sandbox here
+            // would need `allow-scripts` WITHOUT `allow-same-origin`, since the
+            // two together let the framed document strip the sandbox itself.
             iframe {
                 class: "viewer-frame",
                 src: "{raw_url}",
-                // Every restriction on: the page comes out of a repository this
-                // console does not vouch for, and without this it would run its
-                // own script against this origin — where it could call the api
-                // with whatever authenticates the reader. Scripts inside the
-                // preview therefore do not run; markup and styling do.
-                // Quoted because dioxus has no typed `sandbox` on iframe; an
-                // empty value is the attribute at its most restrictive.
-                "sandbox": "",
             }
         };
     }
