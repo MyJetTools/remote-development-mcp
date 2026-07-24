@@ -887,6 +887,138 @@ tr.row-PANIC td {
     background: #ffffff;
 }
 
+/* Syntax highlighting for the file viewer.
+ *
+ * The server emits classes rather than inline colours, which is the whole reason
+ * both palettes can apply to the same markup. Every class it writes is prefixed
+ * `syn-` so nothing here can collide with the console's own names — `.string`
+ * and `.keyword` are exactly the words a stylesheet uses for something else.
+ *
+ * The classes come from the grammar's scope names split on the dot, so
+ * `keyword.control.rust` arrives as `syn-keyword syn-control syn-rust`. That is
+ * why the rules below key off the first, broadest token: matching the language
+ * suffix would mean writing this file once per language, and the broad scopes
+ * are the ones every grammar agrees on.
+ *
+ * The four palette blocks mirror 01-common.css — dark by default, light when the
+ * machine asks, then the two the reader can pick, which win on specificity. The
+ * pairs must stay identical to each other, for the same reason given there. */
+
+:root {
+    --syn-comment: #6b7386;
+    --syn-string: #8ec07c;
+    --syn-keyword: #c39ff0;
+    --syn-constant: #e5945c;
+    --syn-function: #6ea8fe;
+    --syn-type: #5fc9c0;
+    --syn-punctuation: #8a92a4;
+    --syn-invalid: #ff5c5c;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --syn-comment: #7a8496;
+        --syn-string: #187a3f;
+        --syn-keyword: #7c3aed;
+        --syn-constant: #b45309;
+        --syn-function: #2563eb;
+        --syn-type: #0f766e;
+        --syn-punctuation: #626c7e;
+        --syn-invalid: #dc2626;
+    }
+}
+
+.app-root.theme-dark {
+    --syn-comment: #6b7386;
+    --syn-string: #8ec07c;
+    --syn-keyword: #c39ff0;
+    --syn-constant: #e5945c;
+    --syn-function: #6ea8fe;
+    --syn-type: #5fc9c0;
+    --syn-punctuation: #8a92a4;
+    --syn-invalid: #ff5c5c;
+}
+
+.app-root.theme-light {
+    --syn-comment: #7a8496;
+    --syn-string: #187a3f;
+    --syn-keyword: #7c3aed;
+    --syn-constant: #b45309;
+    --syn-function: #2563eb;
+    --syn-type: #0f766e;
+    --syn-punctuation: #626c7e;
+    --syn-invalid: #dc2626;
+}
+
+/* The highlighter wraps the whole file in its own root scope span, which would
+   otherwise inherit nothing and sit at the browser default. */
+.viewer-code,
+.viewer-code .syn-source,
+.viewer-code .syn-text {
+    color: var(--text);
+}
+
+.viewer-code .syn-comment {
+    color: var(--syn-comment);
+    font-style: italic;
+}
+
+.viewer-code .syn-string {
+    color: var(--syn-string);
+}
+
+.viewer-code .syn-keyword,
+.viewer-code .syn-storage {
+    color: var(--syn-keyword);
+}
+
+/* Numbers, booleans, character escapes — and `constant.other` covers a language's
+   named constants without this file knowing any of them. */
+.viewer-code .syn-constant {
+    color: var(--syn-constant);
+}
+
+/* `entity.name.function` and the calls that reference it, plus `support.function`
+   for the ones a language ships rather than the file declaring them. */
+.viewer-code .syn-entity,
+.viewer-code .syn-support {
+    color: var(--syn-function);
+}
+
+/* Type names win over the rule above: a grammar scopes them
+   `entity.name.type`/`support.type`, so without this they would read as
+   functions. */
+.viewer-code .syn-entity.syn-name.syn-type,
+.viewer-code .syn-entity.syn-name.syn-class,
+.viewer-code .syn-entity.syn-name.syn-struct,
+.viewer-code .syn-entity.syn-name.syn-enum,
+.viewer-code .syn-support.syn-type,
+.viewer-code .syn-support.syn-class {
+    color: var(--syn-type);
+}
+
+/* A plain variable is the body of the file rather than a feature of it, so it
+   stays the reading colour instead of adding a seventh one. */
+.viewer-code .syn-variable {
+    color: var(--text);
+}
+
+.viewer-code .syn-punctuation {
+    color: var(--syn-punctuation);
+}
+
+/* Inside a string, the quotes and any interpolation belong to the string — left
+   out, they break it into pieces of different colours. */
+.viewer-code .syn-string .syn-punctuation {
+    color: inherit;
+}
+
+/* What the grammar could not parse. Worth seeing rather than hiding: in a file
+   being edited it usually means the syntax error is right there. */
+.viewer-code .syn-invalid {
+    color: var(--syn-invalid);
+}
+
 @media (max-width: 900px) {
     .detail-cell {
         width: auto;

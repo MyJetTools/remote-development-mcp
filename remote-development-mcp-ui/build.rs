@@ -7,6 +7,7 @@ fn main() {
         .add_file("05-dialog.css")
         .add_file("06-topbar.css")
         .add_file("07-files.css")
+        .add_file("08-syntax.css")
         .add_file("99-desktop.css")
         .compile("./public/assets/app.css");
 }

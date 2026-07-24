@@ -143,6 +143,24 @@ fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) 
         };
     }
 
+    // Only for a plain text file: on markdown the `html` slot holds the rendered
+    // document, not a highlighted copy of the source, so reading it here would
+    // put the rendering back on screen the moment someone asked for the source.
+    if kind == FILE_KIND_TEXT {
+        if let Some(html) = content.html.as_ref() {
+            return rsx! {
+                // Injected markup again, and safe for the same kind of reason as
+                // the markdown above: it is generated from this file by the
+                // server's highlighter, which escapes the source as it
+                // classifies it. It describes the file — it is not the file.
+                pre {
+                    class: "viewer-text viewer-code",
+                    dangerous_inner_html: "{html}",
+                }
+            };
+        }
+    }
+
     if kind == FILE_KIND_TEXT || kind == FILE_KIND_MARKDOWN {
         let text = content.text.clone().unwrap_or_default();
 

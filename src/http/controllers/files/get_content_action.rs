@@ -47,7 +47,7 @@ async fn handle_request(
     };
 
     let (kind, text, html) = match result.preview {
-        FilePreview::Text(text) => (FILE_KIND_TEXT, Some(text), None),
+        FilePreview::Text { source, html } => (FILE_KIND_TEXT, Some(source), html),
         FilePreview::Markdown { source, html } => (FILE_KIND_MARKDOWN, Some(source), Some(html)),
         FilePreview::Image => (FILE_KIND_IMAGE, None, None),
         FilePreview::Html => (FILE_KIND_HTML, None, None),

@@ -70,3 +70,12 @@ flurl = { tag = "0.7.0", git = "https://github.com/MyJetTools/fl-url.git" }
 # purpose: the default set drags in `getopts`, which exists for the crate's own
 # command-line binary and is dead weight here.
 pulldown-cmark = { version = "*", default-features = false, features = ["html"] }
+
+# Syntax highlighting for the file viewer, done here rather than in the browser:
+# the console is wasm, and a highlighter there would cost every reader a download
+# to save this machine nothing.
+#
+# `default-fancy` instead of the default feature set: the default one matches
+# with `onig`, which is a C library to build, and `fancy-regex` is pure Rust for
+# the same grammars.
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }

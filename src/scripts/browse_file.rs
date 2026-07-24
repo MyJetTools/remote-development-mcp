@@ -32,7 +32,14 @@ const HTML_EXTENSIONS: [&str; 2] = ["html", "htm"];
 const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
 pub enum FilePreview {
-    Text(String),
+    /// The file's own text, and — when there is a grammar for it and it is small
+    /// enough to be worth the walk — that same text as highlighted markup. Both,
+    /// because the markup is an enhancement: `None` there is an ordinary answer
+    /// and the viewer falls back to drawing the text.
+    Text {
+        source: String,
+        html: Option<String>,
+    },
     /// The source and the markup it renders to. Both, because the console shows
     /// the rendering by default and lets the reader drop to the source without
     /// a second round trip.
@@ -123,7 +130,9 @@ pub async fn preview_file(
         return done(FilePreview::Markdown { source: text, html });
     }
 
-    done(FilePreview::Text(text))
+    let html = crate::scripts::highlight(&text, &relative);
+
+    done(FilePreview::Text { source: text, html })
 }
 
 /// The folder a path sits in, relative to the project root — `""` for a file at
@@ -291,7 +300,31 @@ mod tests {
         let result = preview_file(&repo, "main.rs").await.unwrap();
 
         match result.preview {
-            FilePreview::Text(text) => assert_eq!(text, "fn main() {}"),
+            FilePreview::Text { source, html } => {
+                assert_eq!(source, "fn main() {}");
+
+                // The text is what the viewer falls back to; the markup beside
+                // it is the enhancement. `.rs` has a grammar, so it is here.
+                assert!(html.is_some());
+            }
+            _ => panic!("expected text"),
+        }
+    }
+
+    /// A file the highlighter has no grammar for is still a text file — the
+    /// markup is an extra, and its absence must not change the verdict.
+    #[tokio::test]
+    async fn a_text_file_with_no_grammar_is_still_text() {
+        let repo = build_test_repo("preview_text_no_grammar", TestRepoOptions::default()).await;
+        std::fs::write(repo.root().join("notes.unknownext"), "just words").unwrap();
+
+        let result = preview_file(&repo, "notes.unknownext").await.unwrap();
+
+        match result.preview {
+            FilePreview::Text { source, html } => {
+                assert_eq!(source, "just words");
+                assert!(html.is_none());
+            }
             _ => panic!("expected text"),
         }
     }
