@@ -26,12 +26,6 @@
     --panic: #ff5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
 
-    /* The file-type icons are monochrome dark artwork drawn for a light
-       background. `brightness(0)` flattens each to a black silhouette and this
-       lifts it back towards the text colour — a number per theme rather than a
-       colour, because `filter` takes no colour here. */
-    --icon-invert: 58%;
-    --icon-invert-strong: 82%;
 }
 
 @media (prefers-color-scheme: light) {
@@ -50,9 +44,6 @@
         --fail: #c2410c;
         --panic: #dc2626;
         --scrim: rgba(15, 23, 42, 0.4);
-
-        --icon-invert: 42%;
-        --icon-invert-strong: 18%;
     }
 }
 
@@ -71,9 +62,6 @@
     --fail: #e8833a;
     --panic: #ff5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
-
-    --icon-invert: 58%;
-    --icon-invert-strong: 82%;
 }
 
 .app-root.theme-light {
@@ -91,9 +79,6 @@
     --fail: #c2410c;
     --panic: #dc2626;
     --scrim: rgba(15, 23, 42, 0.4);
-
-    --icon-invert: 42%;
-    --icon-invert-strong: 18%;
 }
 
 * {
@@ -532,6 +517,9 @@ tr.row-PANIC td {
     font-size: 13px;
     white-space: nowrap;
     cursor: pointer;
+    /* The tabs are links now, so that a tab can be opened in a new window and
+       bookmarked. These undo what a browser gives an <a> by default. */
+    text-decoration: none;
 }
 
 .tab:hover {
@@ -610,6 +598,9 @@ tr.row-PANIC td {
     border-right: 1px solid var(--border);
     padding: 8px 0 16px 0;
     user-select: none;
+    /* Lifts the tree off the viewer, so the split reads as two surfaces rather
+       than one pane with a rule down it. */
+    box-shadow: 0 4px 5px #0000003d;
 }
 
 .files-viewer {
@@ -675,21 +666,14 @@ tr.row-PANIC td {
     font-size: 11px;
 }
 
-/* The icons under public/assets/file-types are monochrome artwork drawn in one
-   dark colour, so neither palette can use them as they are. `brightness(0)`
-   flattens each to a black silhouette and the invert — which the theme sets —
-   lifts it to roughly the text colour. A new icon therefore needs no
-   recolouring by hand, only the same monochrome shape. */
+/* Drawn as they are. The icons under public/assets/file-types used to be
+   flattened to a silhouette and re-tinted per theme, which meant an icon with
+   its own colours lost them — so an icon is now shown exactly as its file, and
+   carrying colours that read on both palettes is the artwork's job. */
 .tree-icon {
     flex: 0 0 auto;
     width: 14px;
     height: 14px;
-    filter: brightness(0) invert(var(--icon-invert));
-}
-
-.tree-row:hover .tree-icon,
-.tree-row.selected .tree-icon {
-    filter: brightness(0) invert(var(--icon-invert-strong));
 }
 
 .tree-note {
@@ -717,6 +701,9 @@ tr.row-PANIC td {
     flex: 1 1 auto;
 }
 
+/* Shared by the source/rendered switch and the "open full screen" link, so the
+   two sit in the head as one kind of control. `text-decoration` is here because
+   one of them is an <a>. */
 .viewer-toggle {
     flex: 0 0 auto;
     background: transparent;
@@ -727,6 +714,7 @@ tr.row-PANIC td {
     font-size: 11px;
     padding: 1px 8px;
     cursor: pointer;
+    text-decoration: none;
 }
 
 .viewer-toggle:hover {
@@ -764,12 +752,14 @@ tr.row-PANIC td {
 }
 
 /* Rendered markdown. The one place in the console showing prose rather than
-   tables, so it drops the monospace face and takes a reading measure — a README
-   set flush across a wide window is unreadable. */
+   tables, so it drops the monospace face.
+   No reading measure: this pane is already one column of a split view and the
+   reader sizes the window, so capping the width here only wasted the half of a
+   wide screen that was opened on purpose. Wide tables and code blocks inside it
+   scroll in their own boxes, so nothing here forces the page sideways. */
 .viewer-markdown {
     padding: 20px 24px 48px 24px;
     overflow: auto;
-    max-width: 900px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
         sans-serif;
     font-size: 14px;

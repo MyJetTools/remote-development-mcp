@@ -29,6 +29,16 @@ pub fn effective_repo(cs_ra: &FilesState, repos: &[RepoModel]) -> Option<String>
         }
     }
 
+    // Nothing picked in this session yet — which is every reload — so come back
+    // to whatever was being read last time. Checked against the projects the
+    // server actually serves, because the stored name can be one that has since
+    // been renamed or dropped from the settings.
+    if let Some(stored) = crate::web::get_selected_repo() {
+        if repos.iter().any(|itm| itm.name == stored) {
+            return Some(stored);
+        }
+    }
+
     repos.first().map(|repo| repo.name.clone())
 }
 

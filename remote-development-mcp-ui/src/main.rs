@@ -7,8 +7,35 @@ mod models;
 mod states;
 mod time;
 mod views;
+mod web;
 
-use states::AppState;
+use views::dashboard::{FilesTab, ProjectsTab, SessionsTab, Shell, TasksTab};
+
+/// One url per tab, so a tab can be linked to, bookmarked and reloaded into.
+///
+/// `Tasks` sits on the root rather than under `/tasks`: it is what the console
+/// is for — what the server is doing right now — so a bare link to the machine
+/// should land on it directly instead of on a redirect.
+///
+/// Every route hangs off `Shell`, and that is what makes tab switching cheap: a
+/// layout is mounted once and only its `Outlet` swaps underneath, so moving
+/// between tabs keeps the snapshot and does not restart the poll loop.
+///
+/// Deep links work because the server serves `index.html` for unknown paths
+/// (`set_not_found_file` in its static middleware) — `/files` reaches this
+/// router in the browser rather than 404ing on the way in.
+#[derive(Routable, Clone, PartialEq)]
+pub enum AppRoute {
+    #[layout(Shell)]
+    #[route("/")]
+    TasksTab {},
+    #[route("/projects")]
+    ProjectsTab {},
+    #[route("/files")]
+    FilesTab {},
+    #[route("/sessions")]
+    SessionsTab {},
+}
 
 fn main() {
     dioxus::LaunchBuilder::new().launch(|| {
@@ -18,30 +45,7 @@ fn main() {
                 name: "viewport",
                 content: "width=device-width, initial-scale=1.0",
             }
-            App {}
+            Router::<AppRoute> {}
         }
     });
-}
-
-#[component]
-fn App() -> Element {
-    let app_state = use_context_provider(|| Signal::new(AppState::default()));
-
-    // The one place the palette is chosen. Everything below reads its colours
-    // from variables, so the whole console changes with this class and nothing
-    // else has to know a theme exists. No class at all means the stylesheet's
-    // own `prefers-color-scheme` default is left to decide.
-    let theme_class = app_state.read().theme.class();
-
-    rsx! {
-        // Wraps the dialog too, not just the panel: the dialog is a fixed
-        // overlay outside the panel's box, and left outside this it would keep
-        // the system palette while everything behind it changed.
-        div { class: "app-root {theme_class}",
-            div { id: "main-panel",
-                crate::views::dashboard::RenderDashboard {}
-            }
-            crate::dialogs::RenderDialog {}
-        }
-    }
 }

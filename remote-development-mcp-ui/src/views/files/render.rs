@@ -33,6 +33,18 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     let is_markdown =
         matches!(content.as_ref(), Some(Ok(content)) if content.kind == FILE_KIND_MARKDOWN);
 
+    // An html file is shown in an iframe that is one column of a split view, and
+    // a page built for a whole window rarely survives that — so it gets a way
+    // out to a tab of its own.
+    let is_html = matches!(content.as_ref(), Some(Ok(content)) if content.kind == FILE_KIND_HTML);
+
+    // The same url the iframe is pointed at, so "open" shows exactly what the
+    // pane is showing rather than a second rendering of it.
+    let open_url = selected
+        .as_ref()
+        .map(|path| crate::api::files::raw_url(&repo, path))
+        .unwrap_or_default();
+
     let viewer = match content {
         Some(Ok(content)) => render_content(&repo, content, show_source),
         Some(Err(note)) => note,
@@ -53,7 +65,14 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                         select {
                             class: "tree-repo-select",
                             value: "{repo}",
-                            onchange: move |evt| cs.write().select_repo(evt.value()),
+                            // Remembered before the state is touched, so a
+                            // reload comes back to the project being read
+                            // rather than to the first one configured.
+                            onchange: move |evt| {
+                                let picked = evt.value();
+                                crate::web::set_selected_repo(&picked);
+                                cs.write().select_repo(picked);
+                            },
                             for project in repos.iter() {
                                 option {
                                     key: "{project.name}",
@@ -86,6 +105,15 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                                 class: "viewer-toggle",
                                 onclick: move |_| cs.write().toggle_source(),
                                 if show_source { "rendered" } else { "source" }
+                            }
+                        }
+                        if is_html {
+                            div { class: "spacer" }
+                            a {
+                                class: "viewer-toggle",
+                                href: "{open_url}",
+                                target: "_blank",
+                                "open full screen"
                             }
                         }
                     }

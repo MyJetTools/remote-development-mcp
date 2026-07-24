@@ -3,14 +3,11 @@ use rest_api_shared::DashboardStateResponse;
 use rust_extensions::date_time::TimeZone;
 
 use crate::dialogs::DialogState;
-use crate::states::{Section, Theme};
+use crate::states::Theme;
 
 #[derive(Default)]
 pub struct AppState {
     dialog_state: DialogState,
-    /// Which section the left menu has open. Survives the poll — refreshing the
-    /// data must not throw the reader back to a default screen.
-    pub section: Section,
     /// Which palette to render in. Starts at "whatever the machine says" and
     /// only stops following it when the reader picks one.
     pub theme: Theme,
@@ -45,10 +42,6 @@ impl AppState {
 
     pub fn close_dialog(&mut self) {
         self.dialog_state = DialogState::None;
-    }
-
-    pub fn select_section(&mut self, section: Section) {
-        self.section = section;
     }
 
     pub fn cycle_theme(&mut self) {

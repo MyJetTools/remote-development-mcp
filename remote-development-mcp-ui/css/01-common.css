@@ -26,12 +26,6 @@
     --panic: #ff5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
 
-    /* The file-type icons are monochrome dark artwork drawn for a light
-       background. `brightness(0)` flattens each to a black silhouette and this
-       lifts it back towards the text colour — a number per theme rather than a
-       colour, because `filter` takes no colour here. */
-    --icon-invert: 58%;
-    --icon-invert-strong: 82%;
 }
 
 @media (prefers-color-scheme: light) {
@@ -50,9 +44,6 @@
         --fail: #c2410c;
         --panic: #dc2626;
         --scrim: rgba(15, 23, 42, 0.4);
-
-        --icon-invert: 42%;
-        --icon-invert-strong: 18%;
     }
 }
 
@@ -71,9 +62,6 @@
     --fail: #e8833a;
     --panic: #ff5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
-
-    --icon-invert: 58%;
-    --icon-invert-strong: 82%;
 }
 
 .app-root.theme-light {
@@ -91,9 +79,6 @@
     --fail: #c2410c;
     --panic: #dc2626;
     --scrim: rgba(15, 23, 42, 0.4);
-
-    --icon-invert: 42%;
-    --icon-invert-strong: 18%;
 }
 
 * {

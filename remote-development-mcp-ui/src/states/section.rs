@@ -31,4 +31,28 @@ impl Section {
             Section::Tasks => "Tasks",
         }
     }
+
+    /// The url this section lives at, for the menu to link to.
+    pub fn route(&self) -> crate::AppRoute {
+        match self {
+            Section::Projects => crate::AppRoute::ProjectsTab {},
+            Section::Files => crate::AppRoute::FilesTab {},
+            Section::Sessions => crate::AppRoute::SessionsTab {},
+            Section::Tasks => crate::AppRoute::TasksTab {},
+        }
+    }
+
+    /// Which section a url is showing.
+    ///
+    /// The route is the single source of truth for that now — it used to be a
+    /// field on `AppState`, and keeping both would have meant the menu could
+    /// highlight one tab while the content showed another.
+    pub fn from_route(route: &crate::AppRoute) -> Self {
+        match route {
+            crate::AppRoute::ProjectsTab {} => Section::Projects,
+            crate::AppRoute::FilesTab {} => Section::Files,
+            crate::AppRoute::SessionsTab {} => Section::Sessions,
+            crate::AppRoute::TasksTab {} => Section::Tasks,
+        }
+    }
 }

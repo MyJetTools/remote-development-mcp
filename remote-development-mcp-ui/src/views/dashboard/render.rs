@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use dioxus::prelude::*;
 use dioxus_utils::RenderState;
+use rest_api_shared::DashboardStateResponse;
 
 use crate::states::AppState;
 
@@ -9,65 +10,160 @@ use crate::states::AppState;
 /// costs a map read — not a query.
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 
+/// Everything that has to outlive a tab switch: the state, the poll loop, the
+/// palette, the top bar and the dialog overlay.
+///
+/// A router layout rather than a component per tab, and that is the whole point
+/// — a layout is mounted once and only its `Outlet` swaps underneath, so moving
+/// between tabs keeps the snapshot on screen. Were each tab to own this, every
+/// click would rebuild `AppState`, restart the loop and flash "connecting…".
 #[component]
-pub fn RenderDashboard() -> Element {
-    let app_state = consume_context::<Signal<AppState>>();
+pub fn Shell() -> Element {
+    let app_state = use_context_provider(|| Signal::new(AppState::default()));
     let app_state_ra = app_state.read();
 
     if !app_state_ra.polling_started {
         start_polling(app_state);
     }
 
-    let state = match app_state_ra.state.as_ref() {
-        RenderState::None | RenderState::Loading => {
-            return rsx! {
-                div { class: "loading-screen", "connecting…" }
-            }
-        }
-        RenderState::Error(err) => {
-            return rsx! {
-                div { class: "error-screen", "{err}" }
-            }
-        }
-        RenderState::Loaded(state) => state.clone(),
+    // The one place the palette is chosen. Everything below reads its colours
+    // from variables, so the whole console changes with this class and nothing
+    // else has to know a theme exists. No class at all means the stylesheet's
+    // own `prefers-color-scheme` default is left to decide.
+    let theme_class = app_state_ra.theme.class();
+    let stale = app_state_ra.last_error.clone();
+
+    let snapshot = match app_state_ra.state.as_ref() {
+        RenderState::None | RenderState::Loading => Err(rsx! {
+            div { class: "loading-screen", "connecting…" }
+        }),
+        RenderState::Error(err) => Err(rsx! {
+            div { class: "error-screen", "{err}" }
+        }),
+        RenderState::Loaded(state) => Ok(state.clone()),
     };
 
-    let stale = app_state_ra.last_error.clone();
-    let section = app_state_ra.section;
-    let tz = app_state_ra.time_zone();
+    // Dropped before the tabs render: they read this same signal, and holding a
+    // guard across them is asking for a deadlock the first time one writes.
+    drop(app_state_ra);
 
-    let content = match section {
-        // Scroll as one block.
-        crate::states::Section::Projects => rsx! {
-            div { class: "section-scroll",
-                crate::components::ReposPanel { repos: state.repos.clone() }
-            }
-        },
-        // Two columns filling the height, each scrolling on its own — the tree
-        // must not scroll the file away, and the file must not scroll the tree.
-        crate::states::Section::Files => rsx! {
-            crate::views::files::RenderFiles { repos: state.repos.clone() }
-        },
-        crate::states::Section::Sessions => rsx! {
-            div { class: "section-scroll",
-                crate::components::SessionsPanel { sessions: state.sessions.clone(), tz }
-            }
-        },
-        // Everything the server is doing: what is running, what it has run, and
-        // the CI builds it is following. Jobs and CI keep their natural height at
-        // the top; History takes the rest of the column and scrolls inside it.
-        crate::states::Section::Tasks => rsx! {
-            div { class: "section-fill",
-                crate::components::JobsPanel { jobs: state.jobs.clone() }
-                crate::components::ActionsPanel { actions: state.actions.clone() }
-                crate::components::HistoryPanel { history: state.history.clone(), tz }
+    let body = match snapshot {
+        Err(note) => note,
+        Ok(state) => rsx! {
+            crate::components::TopBar { state, stale }
+            div { class: "content",
+                Outlet::<crate::AppRoute> {}
             }
         },
     };
 
     rsx! {
-        crate::components::TopBar { state: state.clone(), active: section, stale }
-        div { class: "content", {content} }
+        // Wraps the dialog too, not just the panel: the dialog is a fixed
+        // overlay outside the panel's box, and left outside this it would keep
+        // the system palette while everything behind it changed.
+        div { class: "app-root {theme_class}",
+            div { id: "main-panel", {body} }
+            crate::dialogs::RenderDialog {}
+        }
+    }
+}
+
+/// The projects this server exposes and the urls they are reached at. Scrolls as
+/// one block.
+#[component]
+pub fn ProjectsTab() -> Element {
+    let app_state = consume_context::<Signal<AppState>>();
+    let app_state_ra = app_state.read();
+
+    let Some(state) = snapshot(&app_state_ra) else {
+        return rsx! {};
+    };
+
+    drop(app_state_ra);
+
+    rsx! {
+        div { class: "section-scroll",
+            crate::components::ReposPanel { repos: state.repos }
+        }
+    }
+}
+
+/// Browsing one project's tree and looking at what is in it.
+///
+/// Two columns filling the height, each scrolling on its own — the tree must not
+/// scroll the file away, and the file must not scroll the tree.
+#[component]
+pub fn FilesTab() -> Element {
+    let app_state = consume_context::<Signal<AppState>>();
+    let app_state_ra = app_state.read();
+
+    let Some(state) = snapshot(&app_state_ra) else {
+        return rsx! {};
+    };
+
+    drop(app_state_ra);
+
+    rsx! {
+        crate::views::files::RenderFiles { repos: state.repos }
+    }
+}
+
+/// The live MCP sessions.
+#[component]
+pub fn SessionsTab() -> Element {
+    let app_state = consume_context::<Signal<AppState>>();
+    let app_state_ra = app_state.read();
+
+    let Some(state) = snapshot(&app_state_ra) else {
+        return rsx! {};
+    };
+
+    let tz = app_state_ra.time_zone();
+
+    drop(app_state_ra);
+
+    rsx! {
+        div { class: "section-scroll",
+            crate::components::SessionsPanel { sessions: state.sessions, tz }
+        }
+    }
+}
+
+/// What the server is doing: running commands, the call feed, CI builds.
+///
+/// Jobs and CI keep their natural height at the top; History takes the rest of
+/// the column and scrolls inside it.
+#[component]
+pub fn TasksTab() -> Element {
+    let app_state = consume_context::<Signal<AppState>>();
+    let app_state_ra = app_state.read();
+
+    let Some(state) = snapshot(&app_state_ra) else {
+        return rsx! {};
+    };
+
+    let tz = app_state_ra.time_zone();
+
+    drop(app_state_ra);
+
+    rsx! {
+        div { class: "section-fill",
+            crate::components::JobsPanel { jobs: state.jobs }
+            crate::components::ActionsPanel { actions: state.actions }
+            crate::components::HistoryPanel { history: state.history, tz }
+        }
+    }
+}
+
+/// The snapshot a tab draws from.
+///
+/// `Shell` has already gated on it, so in practice there is always one by the
+/// time a tab renders; `None` draws nothing rather than a second "connecting…"
+/// under the one the shell is showing.
+fn snapshot(app_state: &AppState) -> Option<DashboardStateResponse> {
+    match app_state.state.as_ref() {
+        RenderState::Loaded(state) => Some(state.clone()),
+        _ => None,
     }
 }
 

@@ -59,6 +59,9 @@
     font-size: 13px;
     white-space: nowrap;
     cursor: pointer;
+    /* The tabs are links now, so that a tab can be opened in a new window and
+       bookmarked. These undo what a browser gives an <a> by default. */
+    text-decoration: none;
 }
 
 .tab:hover {
