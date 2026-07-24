@@ -12,6 +12,8 @@ use super::render_duration;
 pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<String>) -> Element {
     let mut app_state = consume_context::<Signal<AppState>>();
 
+    let theme = app_state.read().theme;
+
     let uptime = render_duration(state.uptime_sec);
     let dot_class = if stale.is_some() {
         "live-dot stale"
@@ -66,6 +68,15 @@ pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<Stri
                 }
                 span { "up {uptime}" }
                 span { "{state.bind_addr}" }
+
+                // One control for all three settings rather than three: the
+                // list is short and the current one is written on the button.
+                button {
+                    class: "theme-toggle",
+                    title: "theme — follows the machine until you pick one",
+                    onclick: move |_| app_state.write().cycle_theme(),
+                    "{theme.label()}"
+                }
             }
         }
     }

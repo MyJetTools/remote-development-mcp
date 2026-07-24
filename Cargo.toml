@@ -65,3 +65,8 @@ regex = "*"
 # GitHub REST API. Same pin my-settings-reader carries, so there is one copy of
 # flurl in the graph.
 flurl = { tag = "0.7.0", git = "https://github.com/MyJetTools/fl-url.git" }
+
+# Renders markdown for the browser console. `default-features = false` on
+# purpose: the default set drags in `getopts`, which exists for the crate's own
+# command-line binary and is dead weight here.
+pulldown-cmark = { version = "*", default-features = false, features = ["html"] }

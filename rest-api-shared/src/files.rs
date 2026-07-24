@@ -50,6 +50,7 @@ pub struct ListFolderResponse {
 /// because a `kind` the console does not recognise should render as "can not be
 /// shown" rather than fail to deserialize the whole response.
 pub const FILE_KIND_TEXT: &str = "text";
+pub const FILE_KIND_MARKDOWN: &str = "markdown";
 pub const FILE_KIND_IMAGE: &str = "image";
 pub const FILE_KIND_HTML: &str = "html";
 pub const FILE_KIND_BINARY: &str = "binary";
@@ -63,8 +64,12 @@ pub struct FileContentResponse {
     /// console: whether a file is text is whether its bytes actually decoded as
     /// UTF-8, which only the side holding the bytes can answer.
     pub kind: String,
-    /// The file, when `kind` is `text`. Absent for every other kind — an image
-    /// and an html page are fetched as bytes from the raw endpoint instead, so
-    /// they are never base64'd through this JSON.
+    /// The file, when `kind` is `text` or `markdown`. Absent for every other
+    /// kind — an image and an html page are fetched as bytes from the raw
+    /// endpoint instead, so they are never base64'd through this JSON.
     pub text: Option<String>,
+    /// The rendered markup, when `kind` is `markdown`. Sent alongside the source
+    /// rather than instead of it, so the console can show either without asking
+    /// for the file twice.
+    pub html: Option<String>,
 }

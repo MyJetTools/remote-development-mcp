@@ -26,6 +26,8 @@ mod move_path;
 pub use move_path::*;
 mod read_file;
 pub use read_file::*;
+mod render_markdown;
+pub use render_markdown::*;
 mod repo_info;
 pub use repo_info::*;
 mod run_command;

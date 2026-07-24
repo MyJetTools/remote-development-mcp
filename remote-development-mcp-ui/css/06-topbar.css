@@ -101,3 +101,21 @@
 .topbar-meta .stale {
     color: var(--fail);
 }
+
+/* Cycles auto → light → dark. Sits with the meta, not with the tabs: it is a
+   setting, not a place to go. */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 11px;
+    padding: 1px 8px;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}

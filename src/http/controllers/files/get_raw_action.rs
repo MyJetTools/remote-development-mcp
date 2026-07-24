@@ -59,5 +59,16 @@ async fn handle_request(
         // Without a content type the browser would otherwise sniff one, which is
         // how a text file gets executed as html.
         .add_header("X-Content-Type-Options", "nosniff")
+        // The url is stable but the file behind it is not — it is a working copy
+        // being edited while the console is open. A cached response would show
+        // the reader an edit-old version of a file they just changed, with no way
+        // to tell. `no-store` is the strong one; the rest are for intermediaries
+        // that predate it.
+        .add_header(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate, max-age=0",
+        )
+        .add_header("Pragma", "no-cache")
+        .add_header("Expires", "0")
         .into_ok_result(false)
 }

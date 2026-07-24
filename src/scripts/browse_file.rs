@@ -29,8 +29,17 @@ const IMAGE_EXTENSIONS: [(&str, &str); 9] = [
 
 const HTML_EXTENSIONS: [&str; 2] = ["html", "htm"];
 
+const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
+
 pub enum FilePreview {
     Text(String),
+    /// The source and the markup it renders to. Both, because the console shows
+    /// the rendering by default and lets the reader drop to the source without
+    /// a second round trip.
+    Markdown {
+        source: String,
+        html: String,
+    },
     /// Fetched separately, as bytes, from the raw endpoint.
     Image,
     Html,
@@ -96,12 +105,33 @@ pub async fn preview_file(
         .await
         .map_err(|err| format!("Can not read '{}'. Err: {}", relative, err))?;
 
-    match String::from_utf8(content) {
+    let text = match String::from_utf8(content) {
         // A NUL byte is valid UTF-8 but never occurs in a file anyone means to
         // read — it is the one cheap tell that separates a text file from a
         // binary that happens to decode.
-        Ok(text) if !text.contains('\0') => done(FilePreview::Text(text)),
-        _ => done(FilePreview::Binary),
+        Ok(text) if !text.contains('\0') => text,
+        _ => return done(FilePreview::Binary),
+    };
+
+    // Checked after the decode rather than beside the image and html
+    // extensions: a `.md` that turns out not to be text at all is a binary
+    // file with a misleading name, and rendering it as markdown would be
+    // taking the name's word for it.
+    if is_markdown(&relative) {
+        let html = crate::scripts::render_markdown(&text, &repo.name, parent_of(&relative));
+
+        return done(FilePreview::Markdown { source: text, html });
+    }
+
+    done(FilePreview::Text(text))
+}
+
+/// The folder a path sits in, relative to the project root — `""` for a file at
+/// the root itself. What a markdown file's own relative links resolve against.
+fn parent_of(path: &str) -> &str {
+    match path.rsplit_once('/') {
+        Some((parent, _)) => parent,
+        None => "",
     }
 }
 
@@ -146,7 +176,33 @@ pub async fn read_file_bytes(repo: &Arc<RepoContext>, path: &str) -> Result<RawF
     })
 }
 
-fn raw_content_type(path: &str) -> Option<&'static str> {
+/// Everything that is not an image and not html, keyed by extension.
+///
+/// Short of a full mime database on purpose — this list exists so that an html
+/// page previewed in the console pulls in its own stylesheet, fonts and data,
+/// which is the handful of types below. Anything else goes out with no type at
+/// all, which with `nosniff` means the browser downloads it rather than
+/// guessing.
+const CONTENT_TYPES: [(&str, &str); 15] = [
+    ("css", "text/css; charset=utf-8"),
+    ("js", "text/javascript; charset=utf-8"),
+    ("mjs", "text/javascript; charset=utf-8"),
+    ("json", "application/json; charset=utf-8"),
+    ("map", "application/json; charset=utf-8"),
+    ("xml", "application/xml; charset=utf-8"),
+    ("txt", "text/plain; charset=utf-8"),
+    ("md", "text/plain; charset=utf-8"),
+    ("csv", "text/csv; charset=utf-8"),
+    ("wasm", "application/wasm"),
+    ("pdf", "application/pdf"),
+    ("woff", "font/woff"),
+    ("woff2", "font/woff2"),
+    ("ttf", "font/ttf"),
+    ("otf", "font/otf"),
+];
+
+/// The `Content-Type` one file is served with, decided by its extension.
+pub fn raw_content_type(path: &str) -> Option<&'static str> {
     if let Some(mime) = image_mime(path) {
         return Some(mime);
     }
@@ -155,7 +211,12 @@ fn raw_content_type(path: &str) -> Option<&'static str> {
         return Some("text/html; charset=utf-8");
     }
 
-    None
+    let extension = extension(path)?;
+
+    CONTENT_TYPES
+        .iter()
+        .find(|(known, _)| *known == extension)
+        .map(|(_, mime)| *mime)
 }
 
 fn image_mime(path: &str) -> Option<&'static str> {
@@ -170,6 +231,13 @@ fn image_mime(path: &str) -> Option<&'static str> {
 fn is_html(path: &str) -> bool {
     match extension(path) {
         Some(extension) => HTML_EXTENSIONS.contains(&extension.as_str()),
+        None => false,
+    }
+}
+
+fn is_markdown(path: &str) -> bool {
+    match extension(path) {
+        Some(extension) => MARKDOWN_EXTENSIONS.contains(&extension.as_str()),
         None => false,
     }
 }

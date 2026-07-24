@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use rest_api_shared::{
-    FileContentResponse, RepoModel, FILE_KIND_HTML, FILE_KIND_IMAGE, FILE_KIND_TEXT,
-    FILE_KIND_TOO_BIG,
+    FileContentResponse, RepoModel, FILE_KIND_HTML, FILE_KIND_IMAGE, FILE_KIND_MARKDOWN,
+    FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
 };
 
 use super::{effective_repo, get_content, render_size, FilesState, FolderChildren, ROOT_PATH};
@@ -22,12 +22,20 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     };
 
     let selected = cs_ra.selected.clone();
+    let show_source = cs_ra.show_source;
 
-    let viewer = match selected.as_ref() {
-        Some(path) => match get_content(cs, &cs_ra, &repo, path) {
-            Ok(content) => render_content(&repo, content),
-            Err(note) => note,
-        },
+    let content = selected
+        .as_ref()
+        .map(|path| get_content(cs, &cs_ra, &repo, path));
+
+    // Only markdown has two ways of being read, so only markdown gets the
+    // switch.
+    let is_markdown =
+        matches!(content.as_ref(), Some(Ok(content)) if content.kind == FILE_KIND_MARKDOWN);
+
+    let viewer = match content {
+        Some(Ok(content)) => render_content(&repo, content, show_source),
+        Some(Err(note)) => note,
         None => rsx! {
             div { class: "viewer-note", "select a file" }
         },
@@ -42,19 +50,15 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                 // a machine serving one project should not spend a row saying so.
                 if repos.len() > 1 {
                     div { class: "tree-repos",
-                        for project in repos.iter() {
-                            {
-                                let name = project.name.clone();
-                                let picked = name == repo;
-                                let class = if picked { "tree-repo picked" } else { "tree-repo" };
-
-                                rsx! {
-                                    button {
-                                        key: "{name}",
-                                        class,
-                                        onclick: move |_| cs.write().select_repo(name.clone()),
-                                        "{project.name}"
-                                    }
+                        select {
+                            class: "tree-repo-select",
+                            value: "{repo}",
+                            onchange: move |evt| cs.write().select_repo(evt.value()),
+                            for project in repos.iter() {
+                                option {
+                                    key: "{project.name}",
+                                    value: "{project.name}",
+                                    "{project.name}"
                                 }
                             }
                         }
@@ -76,6 +80,14 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                 if let Some(path) = selected {
                     div { class: "viewer-head",
                         span { class: "truncate", "{path}" }
+                        if is_markdown {
+                            div { class: "spacer" }
+                            button {
+                                class: "viewer-toggle",
+                                onclick: move |_| cs.write().toggle_source(),
+                                if show_source { "rendered" } else { "source" }
+                            }
+                        }
                     }
                 }
                 div { class: "viewer-body", {viewer} }
@@ -84,12 +96,26 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     }
 }
 
-fn render_content(repo: &str, content: &FileContentResponse) -> Element {
+fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) -> Element {
     let kind = content.kind.as_str();
 
-    if kind == FILE_KIND_TEXT {
-        // `None` only if the server contradicted itself; showing the file as
-        // empty is the honest reading of "text, with no text".
+    if kind == FILE_KIND_MARKDOWN && !show_source {
+        // `None` only if the server contradicted itself — an empty page is the
+        // honest reading of "markdown, with no markup".
+        let html = content.html.clone().unwrap_or_default();
+
+        return rsx! {
+            // The one place this console injects markup it did not write. It is
+            // safe because of what produced the string, not because of anything
+            // here: the server renders it with markdown's raw-html passthrough
+            // switched off and every non-http destination neutralised, so there
+            // is no script and no `javascript:` href left to inject. Point this
+            // at anything else and that stops being true.
+            div { class: "viewer-markdown", dangerous_inner_html: "{html}" }
+        };
+    }
+
+    if kind == FILE_KIND_TEXT || kind == FILE_KIND_MARKDOWN {
         let text = content.text.clone().unwrap_or_default();
 
         return rsx! {

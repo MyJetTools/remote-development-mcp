@@ -34,6 +34,11 @@ pub async fn start(app: &Arc<AppContext>) {
     // The REST surface the browser console reads.
     http_server.add_middleware(Arc::new(super::build_controllers(app)));
 
+    // `/raw/{project}/{path}`, for the previews the console shows in an
+    // `<iframe>` — the shape is what makes a previewed page's own relative
+    // urls resolve to the files beside it. See `RawFilesMiddleware`.
+    http_server.add_middleware(Arc::new(super::RawFilesMiddleware::new(app.clone())));
+
     http_server.add_middleware(Arc::new(IndexRewriteMiddleware::new()));
 
     // Last, and deliberately: it is the only catch-all here, so anything
