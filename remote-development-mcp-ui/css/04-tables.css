@@ -92,3 +92,11 @@ tr.row-PANIC td {
     border: 1px solid var(--border);
     border-radius: 1px;
 }
+
+/* The scrolling body of the History panel when it grows to fill the Tasks
+   column — the head stays put, the rows scroll under it. */
+.history-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}

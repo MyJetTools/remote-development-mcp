@@ -37,18 +37,26 @@ pub fn RenderDashboard() -> Element {
     let tz = app_state_ra.time_zone();
 
     let content = match section {
+        // Scroll as one block.
         crate::states::Section::Projects => rsx! {
-            crate::components::ReposPanel { repos: state.repos.clone() }
+            div { class: "section-scroll",
+                crate::components::ReposPanel { repos: state.repos.clone() }
+            }
         },
         crate::states::Section::Sessions => rsx! {
-            crate::components::SessionsPanel { sessions: state.sessions.clone(), tz }
+            div { class: "section-scroll",
+                crate::components::SessionsPanel { sessions: state.sessions.clone(), tz }
+            }
         },
-        // Everything the server is doing, under one section: what is running,
-        // what it has run, and the CI builds it is following.
+        // Everything the server is doing: what is running, what it has run, and
+        // the CI builds it is following. Jobs and CI keep their natural height at
+        // the top; History takes the rest of the column and scrolls inside it.
         crate::states::Section::Tasks => rsx! {
-            crate::components::JobsPanel { jobs: state.jobs.clone() }
-            crate::components::ActionsPanel { actions: state.actions.clone() }
-            crate::components::HistoryPanel { history: state.history.clone(), tz }
+            div { class: "section-fill",
+                crate::components::JobsPanel { jobs: state.jobs.clone() }
+                crate::components::ActionsPanel { actions: state.actions.clone() }
+                crate::components::HistoryPanel { history: state.history.clone(), tz }
+            }
         },
     };
 

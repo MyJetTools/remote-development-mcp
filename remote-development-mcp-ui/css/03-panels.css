@@ -10,6 +10,16 @@
     margin-bottom: 0;
 }
 
+/* In a `.section-fill` column this is the panel that claims the leftover height
+   and scrolls inside itself. `min-height: 0` is what lets a flex child shrink
+   below its content instead of pushing the column taller than the viewport. */
+.panel.grow {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .panel-head {
     flex: 0 0 auto;
     display: flex;
