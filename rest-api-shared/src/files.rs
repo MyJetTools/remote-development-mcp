@@ -53,6 +53,9 @@ pub const FILE_KIND_TEXT: &str = "text";
 pub const FILE_KIND_MARKDOWN: &str = "markdown";
 pub const FILE_KIND_IMAGE: &str = "image";
 pub const FILE_KIND_HTML: &str = "html";
+/// Bytes the browser renders itself, like html — but a distinct kind, because
+/// they are not the same thing to anything that reasons about the file.
+pub const FILE_KIND_PDF: &str = "pdf";
 pub const FILE_KIND_BINARY: &str = "binary";
 pub const FILE_KIND_TOO_BIG: &str = "too-big";
 

@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use rest_api_shared::{
     FileContentResponse, RepoModel, FILE_KIND_HTML, FILE_KIND_IMAGE, FILE_KIND_MARKDOWN,
-    FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
+    FILE_KIND_PDF, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
 };
 
 use super::{effective_repo, get_content, render_size, FilesState, FolderChildren, ROOT_PATH};
@@ -33,10 +33,13 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
     let is_markdown =
         matches!(content.as_ref(), Some(Ok(content)) if content.kind == FILE_KIND_MARKDOWN);
 
-    // An html file is shown in an iframe that is one column of a split view, and
-    // a page built for a whole window rarely survives that — so it gets a way
-    // out to a tab of its own.
-    let is_html = matches!(content.as_ref(), Some(Ok(content)) if content.kind == FILE_KIND_HTML);
+    // The framed kinds — an html page and a pdf — are shown in one column of a
+    // split view, and neither was laid out for that, so both get a way out to a
+    // tab of their own.
+    let is_framed = matches!(
+        content.as_ref(),
+        Some(Ok(content)) if content.kind == FILE_KIND_HTML || content.kind == FILE_KIND_PDF
+    );
 
     // The same url the iframe is pointed at, so "open" shows exactly what the
     // pane is showing rather than a second rendering of it.
@@ -107,7 +110,7 @@ pub fn RenderFiles(repos: Vec<RepoModel>) -> Element {
                                 if show_source { "rendered" } else { "source" }
                             }
                         }
-                        if is_html {
+                        if is_framed {
                             div { class: "spacer" }
                             a {
                                 class: "viewer-toggle",
@@ -179,7 +182,10 @@ fn render_content(repo: &str, content: &FileContentResponse, show_source: bool) 
         };
     }
 
-    if kind == FILE_KIND_HTML {
+    // A pdf goes through the same frame as an html page: the browser has a
+    // viewer for it, and the raw endpoint already labels it `application/pdf`,
+    // which is the whole of what that viewer needs to take over.
+    if kind == FILE_KIND_HTML || kind == FILE_KIND_PDF {
         return rsx! {
             // Deliberately not sandboxed. A preview has to show the page as it
             // actually behaves — script, fetch, storage and all — and every
