@@ -29,6 +29,13 @@ const IMAGE_EXTENSIONS: [(&str, &str); 9] = [
 
 const HTML_EXTENSIONS: [&str; 2] = ["html", "htm"];
 
+/// Shown in an `<iframe>` like html is, because every browser this console is
+/// opened in renders a pdf itself. Decided by extension for the same reason the
+/// images are: the bytes never decode as text, so without this a pdf would fall
+/// through to "binary file" and the reader would be offered a download of
+/// something the window they are already looking at can display.
+const PDF_EXTENSIONS: [&str; 1] = ["pdf"];
+
 const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
 pub enum FilePreview {
@@ -50,6 +57,8 @@ pub enum FilePreview {
     /// Fetched separately, as bytes, from the raw endpoint.
     Image,
     Html,
+    /// Fetched from the raw endpoint and handed to the browser's own viewer.
+    Pdf,
     /// The bytes are not valid UTF-8 and the extension names nothing the
     /// browser can render.
     Binary,
@@ -102,6 +111,13 @@ pub async fn preview_file(
 
     if is_html(&relative) {
         return done(FilePreview::Html);
+    }
+
+    // Ahead of the size check, like the image and html above: a pdf is routinely
+    // larger than the text limit, and it is never going to be decoded here
+    // anyway — the browser fetches it whole from the raw endpoint.
+    if is_pdf(&relative) {
+        return done(FilePreview::Pdf);
     }
 
     if size_bytes > MAX_TEXT_BYTES {
@@ -240,6 +256,13 @@ fn image_mime(path: &str) -> Option<&'static str> {
 fn is_html(path: &str) -> bool {
     match extension(path) {
         Some(extension) => HTML_EXTENSIONS.contains(&extension.as_str()),
+        None => false,
+    }
+}
+
+fn is_pdf(path: &str) -> bool {
+    match extension(path) {
+        Some(extension) => PDF_EXTENSIONS.contains(&extension.as_str()),
         None => false,
     }
 }
