@@ -8,7 +8,7 @@ default = ["web"]
 web = ["dioxus/web"]
 
 [dependencies]
-dioxus = { version = "0.7" }
+dioxus = { version = "0.7", features = ["router"] }
 dioxus-utils = { tag = "0.7.0", git = "https://github.com/MyJetTools/dioxus-utils.git", features = [
     "web",
 ] }

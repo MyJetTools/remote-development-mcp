@@ -1,4 +1,18 @@
+/* Two palettes, and three ways of choosing between them.
+ *
+ * Nothing below this block names a colour: everything reads these variables, so
+ * the whole console re-themes from here and no component has to know a theme
+ * exists.
+ *
+ * The four blocks are, in order: dark as the built-in default, light when the
+ * machine asks for it, and then the two the reader can pick — which win on
+ * specificity, because picking one is overriding the machine. The two dark
+ * blocks must stay identical to each other and the two light blocks likewise;
+ * css has no way to write a palette once and apply it under two selectors. */
+
 :root {
+    color-scheme: dark;
+
     --bg: #14161a;
     --bg-panel: #1b1e24;
     --bg-row: #202430;
@@ -10,6 +24,61 @@
     --warn: #e0b34a;
     --fail: #e8833a;
     --panic: #ff5c5c;
+    --scrim: rgba(0, 0, 0, 0.6);
+
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        color-scheme: light;
+
+        --bg: #f6f7f9;
+        --bg-panel: #ffffff;
+        --bg-row: #eceff4;
+        --border: #d5dae2;
+        --text: #1e2430;
+        --text-dim: #626c7e;
+        --accent: #2563eb;
+        --ok: #15803d;
+        --warn: #a16207;
+        --fail: #c2410c;
+        --panic: #dc2626;
+        --scrim: rgba(15, 23, 42, 0.4);
+    }
+}
+
+.app-root.theme-dark {
+    color-scheme: dark;
+
+    --bg: #14161a;
+    --bg-panel: #1b1e24;
+    --bg-row: #202430;
+    --border: #2c3140;
+    --text: #d6dae3;
+    --text-dim: #8a92a4;
+    --accent: #6ea8fe;
+    --ok: #57c98a;
+    --warn: #e0b34a;
+    --fail: #e8833a;
+    --panic: #ff5c5c;
+    --scrim: rgba(0, 0, 0, 0.6);
+}
+
+.app-root.theme-light {
+    color-scheme: light;
+
+    --bg: #f6f7f9;
+    --bg-panel: #ffffff;
+    --bg-row: #eceff4;
+    --border: #d5dae2;
+    --text: #1e2430;
+    --text-dim: #626c7e;
+    --accent: #2563eb;
+    --ok: #15803d;
+    --warn: #a16207;
+    --fail: #c2410c;
+    --panic: #dc2626;
+    --scrim: rgba(15, 23, 42, 0.4);
 }
 
 * {

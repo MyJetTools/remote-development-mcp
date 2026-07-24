@@ -9,8 +9,14 @@ use super::render_duration;
 /// and how it is doing. Horizontal on purpose — the tables below are wide, and a
 /// side menu spends width that the content wants.
 #[component]
-pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<String>) -> Element {
+pub fn TopBar(state: DashboardStateResponse, stale: Option<String>) -> Element {
     let mut app_state = consume_context::<Signal<AppState>>();
+
+    let theme = app_state.read().theme;
+
+    // Read off the url rather than passed in: the route is what decides which
+    // tab is showing, so it is also what decides which one is lit.
+    let active = Section::from_route(&use_route::<crate::AppRoute>());
 
     let uptime = render_duration(state.uptime_sec);
     let dot_class = if stale.is_some() {
@@ -44,10 +50,13 @@ pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<Stri
                         };
 
                         rsx! {
-                            button {
+                            // A link rather than a button, so a tab can be
+                            // opened in a new window, copied, and bookmarked —
+                            // and so the back button walks the tabs.
+                            Link {
                                 key: "{section.label()}",
                                 class: tab_class,
-                                onclick: move |_| app_state.write().select_section(section),
+                                to: section.route(),
                                 span { "{section.label()}" }
                                 if let Some(count) = count {
                                     span { class: "tab-badge", "{count}" }
@@ -66,6 +75,15 @@ pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<Stri
                 }
                 span { "up {uptime}" }
                 span { "{state.bind_addr}" }
+
+                // One control for all three settings rather than three: the
+                // list is short and the current one is written on the button.
+                button {
+                    class: "theme-toggle",
+                    title: "theme — follows the machine until you pick one",
+                    onclick: move |_| app_state.write().cycle_theme(),
+                    "{theme.label()}"
+                }
             }
         }
     }

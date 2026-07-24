@@ -7,5 +7,7 @@ mod errors;
 pub use errors::*;
 mod index_rewrite_middleware;
 pub use index_rewrite_middleware::*;
+mod raw_files_middleware;
+pub use raw_files_middleware::*;
 mod start_up;
 pub use start_up::*;

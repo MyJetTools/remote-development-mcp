@@ -15,6 +15,9 @@
     border-right: 1px solid var(--border);
     padding: 8px 0 16px 0;
     user-select: none;
+    /* Lifts the tree off the viewer, so the split reads as two surfaces rather
+       than one pane with a rule down it. */
+    box-shadow: 0 4px 5px #0000003d;
 }
 
 .files-viewer {
@@ -30,31 +33,25 @@
 /* Which project the tree is showing. Only rendered when there is more than
    one. */
 .tree-repos {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
     padding: 0 8px 8px 8px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 6px;
 }
 
-.tree-repo {
-    background: transparent;
+.tree-repo-select {
+    width: 100%;
+    background: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 3px;
-    color: var(--text-dim);
+    color: var(--text);
     font: inherit;
-    padding: 2px 8px;
+    padding: 3px 6px;
     cursor: pointer;
 }
 
-.tree-repo:hover {
-    color: var(--text);
-}
-
-.tree-repo.picked {
+.tree-repo-select:focus {
+    outline: none;
     border-color: var(--accent);
-    color: var(--accent);
 }
 
 .tree-row {
@@ -86,21 +83,14 @@
     font-size: 11px;
 }
 
-/* The icons under public/assets/file-types are monochrome dark artwork, drawn
-   for a light background — on this one they would be all but invisible.
-   `brightness(0)` flattens each to a black silhouette and `invert` lifts it to
-   the text colour, which also means a new icon needs no recolouring by hand,
-   only the same monochrome shape. */
+/* Drawn as they are. The icons under public/assets/file-types used to be
+   flattened to a silhouette and re-tinted per theme, which meant an icon with
+   its own colours lost them — so an icon is now shown exactly as its file, and
+   carrying colours that read on both palettes is the artwork's job. */
 .tree-icon {
     flex: 0 0 auto;
     width: 14px;
     height: 14px;
-    filter: brightness(0) invert(58%);
-}
-
-.tree-row:hover .tree-icon,
-.tree-row.selected .tree-icon {
-    filter: brightness(0) invert(82%);
 }
 
 .tree-note {
@@ -122,6 +112,31 @@
     padding: 6px 12px;
     border-bottom: 1px solid var(--border);
     color: var(--text-dim);
+}
+
+.viewer-head .spacer {
+    flex: 1 1 auto;
+}
+
+/* Shared by the source/rendered switch and the "open full screen" link, so the
+   two sit in the head as one kind of control. `text-decoration` is here because
+   one of them is an <a>. */
+.viewer-toggle {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 11px;
+    padding: 1px 8px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.viewer-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 .viewer-body {
@@ -151,6 +166,123 @@
     font-family: inherit;
     font-size: 12px;
     line-height: 1.5;
+}
+
+/* Rendered markdown. The one place in the console showing prose rather than
+   tables, so it drops the monospace face.
+   No reading measure: this pane is already one column of a split view and the
+   reader sizes the window, so capping the width here only wasted the half of a
+   wide screen that was opened on purpose. Wide tables and code blocks inside it
+   scroll in their own boxes, so nothing here forces the page sideways. */
+.viewer-markdown {
+    padding: 20px 24px 48px 24px;
+    overflow: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+        sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.viewer-markdown h1,
+.viewer-markdown h2,
+.viewer-markdown h3,
+.viewer-markdown h4 {
+    margin: 1.4em 0 0.5em 0;
+    line-height: 1.3;
+}
+
+.viewer-markdown h1 {
+    font-size: 1.7em;
+}
+
+.viewer-markdown h2 {
+    font-size: 1.35em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.25em;
+}
+
+.viewer-markdown h3 {
+    font-size: 1.15em;
+}
+
+/* The first heading of a file has nothing above it to be spaced from. */
+.viewer-markdown > :first-child {
+    margin-top: 0;
+}
+
+.viewer-markdown p,
+.viewer-markdown ul,
+.viewer-markdown ol,
+.viewer-markdown blockquote {
+    margin: 0 0 1em 0;
+}
+
+.viewer-markdown ul,
+.viewer-markdown ol {
+    padding-left: 1.6em;
+}
+
+.viewer-markdown li {
+    margin: 0.2em 0;
+}
+
+.viewer-markdown blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 12px;
+    color: var(--text-dim);
+}
+
+/* Back to monospace: code is the reason the rest of the console is monospace in
+   the first place. */
+.viewer-markdown code {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.87em;
+    background: var(--bg-row);
+    border-radius: 3px;
+    padding: 1px 5px;
+}
+
+.viewer-markdown pre {
+    background: var(--bg-row);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    /* A long line scrolls inside its own block instead of widening the page. */
+    overflow-x: auto;
+    margin: 0 0 1em 0;
+}
+
+.viewer-markdown pre code {
+    background: none;
+    padding: 0;
+}
+
+.viewer-markdown table {
+    border-collapse: collapse;
+    margin: 0 0 1em 0;
+    display: block;
+    overflow-x: auto;
+}
+
+.viewer-markdown th,
+.viewer-markdown td {
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    text-align: left;
+}
+
+.viewer-markdown th {
+    background: var(--bg-row);
+}
+
+.viewer-markdown img {
+    max-width: 100%;
+}
+
+.viewer-markdown hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 1.6em 0;
 }
 
 .viewer-image {

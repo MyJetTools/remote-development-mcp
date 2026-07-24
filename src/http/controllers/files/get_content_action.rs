@@ -4,7 +4,7 @@ use my_http_server::macros::*;
 use my_http_server::*;
 use rest_api_shared::{
     FileContentResponse, FileRequestModel, FILE_KIND_BINARY, FILE_KIND_HTML, FILE_KIND_IMAGE,
-    FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
+    FILE_KIND_MARKDOWN, FILE_KIND_TEXT, FILE_KIND_TOO_BIG,
 };
 
 use crate::{app::AppContext, scripts::FilePreview};
@@ -46,12 +46,13 @@ async fn handle_request(
         Err(err) => return crate::http::bad_request(err).into_err(),
     };
 
-    let (kind, text) = match result.preview {
-        FilePreview::Text(text) => (FILE_KIND_TEXT, Some(text)),
-        FilePreview::Image => (FILE_KIND_IMAGE, None),
-        FilePreview::Html => (FILE_KIND_HTML, None),
-        FilePreview::Binary => (FILE_KIND_BINARY, None),
-        FilePreview::TooBig => (FILE_KIND_TOO_BIG, None),
+    let (kind, text, html) = match result.preview {
+        FilePreview::Text { source, html } => (FILE_KIND_TEXT, Some(source), html),
+        FilePreview::Markdown { source, html } => (FILE_KIND_MARKDOWN, Some(source), Some(html)),
+        FilePreview::Image => (FILE_KIND_IMAGE, None, None),
+        FilePreview::Html => (FILE_KIND_HTML, None, None),
+        FilePreview::Binary => (FILE_KIND_BINARY, None, None),
+        FilePreview::TooBig => (FILE_KIND_TOO_BIG, None, None),
     };
 
     let response = FileContentResponse {
@@ -59,6 +60,7 @@ async fn handle_request(
         size_bytes: result.size_bytes,
         kind: kind.to_string(),
         text,
+        html,
     };
 
     HttpOutput::as_json(response).into_ok_result(true)

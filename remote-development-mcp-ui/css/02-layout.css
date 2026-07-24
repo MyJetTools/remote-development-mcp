@@ -7,6 +7,16 @@ body {
     overflow: hidden;
 }
 
+/* Carries the theme class, and so has to sit above everything that reads a
+   colour — the dialog overlay included, which is why it wraps that too. Paints
+   the background itself rather than leaving it to `body`: when the reader
+   overrides the machine's palette, `body` is outside this element and keeps the
+   machine's. */
+.app-root {
+    background: var(--bg);
+    color: var(--text);
+}
+
 #main-panel {
     /* 100vh rather than 100% so the full height does not depend on every
        ancestor also carrying height:100% — that chain breaking is the usual

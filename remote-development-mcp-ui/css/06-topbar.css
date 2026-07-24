@@ -59,6 +59,9 @@
     font-size: 13px;
     white-space: nowrap;
     cursor: pointer;
+    /* The tabs are links now, so that a tab can be opened in a new window and
+       bookmarked. These undo what a browser gives an <a> by default. */
+    text-decoration: none;
 }
 
 .tab:hover {
@@ -100,4 +103,22 @@
 
 .topbar-meta .stale {
     color: var(--fail);
+}
+
+/* Cycles auto → light → dark. Sits with the meta, not with the tabs: it is a
+   setting, not a place to go. */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 11px;
+    padding: 1px 8px;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
 }
