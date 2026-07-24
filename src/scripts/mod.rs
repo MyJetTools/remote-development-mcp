@@ -1,5 +1,7 @@
 mod apply_patch;
 pub use apply_patch::*;
+mod browse_file;
+pub use browse_file::*;
 mod clean_cargo_targets;
 pub use clean_cargo_targets::*;
 mod create_release;

@@ -37,22 +37,7 @@ async fn handle_request(
     input_data: JobOutputRequestModel,
     _ctx: &HttpContext,
 ) -> Result<HttpOkResult, HttpFailResult> {
-    let repo = action
-        .app
-        .projects
-        .iter()
-        .find(|repo| repo.name == input_data.repo);
-
-    let repo = match repo {
-        Some(repo) => repo,
-        None => {
-            return HttpFailResult::as_not_found(
-                format!("No project named '{}'", input_data.repo),
-                false,
-            )
-            .into_err()
-        }
-    };
+    let repo = crate::http::find_project(&action.app, &input_data.repo)?;
 
     let result = get_job_output(
         repo,

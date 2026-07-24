@@ -80,6 +80,9 @@ fn badge_count(
 ) -> Option<usize> {
     let count = match section {
         Section::Projects => state.repos.len(),
+        // Nothing to count — the tree is one project at a time, and how many
+        // files are in it is exactly what the reader opened the tab to find out.
+        Section::Files => 0,
         Section::Sessions => state.sessions.len(),
         // What is live is what is worth a badge — a finished job is history.
         Section::Tasks => running_jobs,

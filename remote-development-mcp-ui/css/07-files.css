@@ -1,0 +1,173 @@
+/* The Files tab: a tree that scrolls on its own, next to a viewer that scrolls
+   on its own. Neither may scroll the other away, so the row itself never
+   scrolls — `min-height: 0` on both columns is what lets them shrink to the
+   viewport instead of pushing it taller. */
+.files-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+}
+
+.files-tree {
+    flex: 0 0 320px;
+    min-height: 0;
+    overflow: auto;
+    border-right: 1px solid var(--border);
+    padding: 8px 0 16px 0;
+    user-select: none;
+}
+
+.files-viewer {
+    flex: 1 1 auto;
+    /* Without this a wide line of code stretches the column instead of
+       scrolling inside it, and the tree gets squeezed off the screen. */
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Which project the tree is showing. Only rendered when there is more than
+   one. */
+.tree-repos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 0 8px 8px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+}
+
+.tree-repo {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font: inherit;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
+.tree-repo:hover {
+    color: var(--text);
+}
+
+.tree-repo.picked {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-right: 8px;
+    cursor: pointer;
+}
+
+.tree-row:hover {
+    background: var(--bg-row);
+}
+
+.tree-row.selected {
+    background: var(--bg-row);
+    color: var(--accent);
+}
+
+.tree-name {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tree-size {
+    flex: 0 0 auto;
+    font-size: 11px;
+}
+
+/* The icons under public/assets/file-types are monochrome dark artwork, drawn
+   for a light background — on this one they would be all but invisible.
+   `brightness(0)` flattens each to a black silhouette and `invert` lifts it to
+   the text colour, which also means a new icon needs no recolouring by hand,
+   only the same monochrome shape. */
+.tree-icon {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    filter: brightness(0) invert(58%);
+}
+
+.tree-row:hover .tree-icon,
+.tree-row.selected .tree-icon {
+    filter: brightness(0) invert(82%);
+}
+
+.tree-note {
+    color: var(--text-dim);
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.tree-note.failed,
+.viewer-note.failed {
+    color: var(--fail);
+}
+
+.viewer-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+}
+
+.viewer-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+
+.viewer-note {
+    padding: 24px;
+    color: var(--text-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* `pre` keeps the file's own whitespace; the wrap rules are what stop a minified
+   line from making the whole pane scroll sideways forever. */
+.viewer-text {
+    margin: 0;
+    padding: 12px;
+    white-space: pre;
+    tab-size: 4;
+    overflow: auto;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.viewer-image {
+    padding: 16px;
+    overflow: auto;
+}
+
+.viewer-image img {
+    max-width: 100%;
+    /* Transparent artwork is unreadable on a dark background, and the console
+       has no say in what a repository's images look like. */
+    background: #ffffff;
+}
+
+.viewer-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    border: 0;
+    background: #ffffff;
+}

@@ -17,5 +17,17 @@ pub fn build_controllers(app: &Arc<AppContext>) -> ControllersMiddleware {
         app.clone(),
     )));
 
+    controllers.register_get_action(Arc::new(super::controllers::files::ListFolderAction::new(
+        app.clone(),
+    )));
+
+    controllers.register_get_action(Arc::new(super::controllers::files::GetContentAction::new(
+        app.clone(),
+    )));
+
+    controllers.register_get_action(Arc::new(super::controllers::files::GetRawAction::new(
+        app.clone(),
+    )));
+
     controllers
 }

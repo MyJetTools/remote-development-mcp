@@ -43,6 +43,11 @@ pub fn RenderDashboard() -> Element {
                 crate::components::ReposPanel { repos: state.repos.clone() }
             }
         },
+        // Two columns filling the height, each scrolling on its own — the tree
+        // must not scroll the file away, and the file must not scroll the tree.
+        crate::states::Section::Files => rsx! {
+            crate::views::files::RenderFiles { repos: state.repos.clone() }
+        },
         crate::states::Section::Sessions => rsx! {
             div { class: "section-scroll",
                 crate::components::SessionsPanel { sessions: state.sessions.clone(), tz }
