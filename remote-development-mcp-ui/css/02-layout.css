@@ -1,5 +1,6 @@
-/* The page itself never scrolls: it is exactly one viewport tall, a fixed left
-   menu beside a content area that scrolls on its own. */
+/* The page itself never scrolls: it is exactly one viewport tall, a strip of
+   tabs above a content area that scrolls on its own. Tabs rather than a side
+   menu because the tables below are wide — nothing should spend width. */
 html,
 body {
     height: 100%;
@@ -9,16 +10,16 @@ body {
 #main-panel {
     /* 100vh rather than 100% so the full height does not depend on every
        ancestor also carrying height:100% — that chain breaking is the usual
-       reason the sidebar stops short of the bottom. */
+       reason a full-height column stops short of the bottom. */
     height: 100vh;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     min-height: 0;
 }
 
-/* Fills the space beside the menu and is exactly its height — the active
-   section decides how it scrolls, not this. `min-width: 0` lets a wide table
-   shrink and scroll inside itself instead of stretching the row. */
+/* Everything under the tabs, the full width of the window. The active section
+   decides how it scrolls, not this. `min-width: 0` lets a wide table shrink and
+   scroll inside itself instead of stretching the column. */
 .content {
     flex: 1 1 auto;
     min-width: 0;

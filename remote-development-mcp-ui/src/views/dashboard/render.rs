@@ -61,7 +61,7 @@ pub fn RenderDashboard() -> Element {
     };
 
     rsx! {
-        crate::components::Sidebar { state: state.clone(), active: section, stale }
+        crate::components::TopBar { state: state.clone(), active: section, stale }
         div { class: "content", {content} }
     }
 }

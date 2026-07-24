@@ -5,8 +5,11 @@ use crate::states::{AppState, Section};
 
 use super::render_duration;
 
+/// The one horizontal strip above the content: what this server is, the tabs,
+/// and how it is doing. Horizontal on purpose — the tables below are wide, and a
+/// side menu spends width that the content wants.
 #[component]
-pub fn Sidebar(state: DashboardStateResponse, active: Section, stale: Option<String>) -> Element {
+pub fn TopBar(state: DashboardStateResponse, active: Section, stale: Option<String>) -> Element {
     let mut app_state = consume_context::<Signal<AppState>>();
 
     let uptime = render_duration(state.uptime_sec);
@@ -23,33 +26,31 @@ pub fn Sidebar(state: DashboardStateResponse, active: Section, stale: Option<Str
         .count();
 
     rsx! {
-        div { class: "sidebar",
-            div { class: "sidebar-head",
-                div { class: "sidebar-title",
-                    span { class: dot_class }
-                    "{state.app_name}"
-                }
-                div { class: "sidebar-sub", "v{state.version}" }
+        div { class: "topbar",
+            div { class: "topbar-brand",
+                span { class: dot_class }
+                span { class: "topbar-title", "{state.app_name}" }
+                span { class: "dim", "v{state.version}" }
             }
 
-            nav { class: "sidebar-nav",
+            nav { class: "tabs",
                 for section in Section::ALL {
                     {
                         let count = badge_count(&state, section, running_jobs);
-                        let item_class = if section == active {
-                            "nav-item active"
+                        let tab_class = if section == active {
+                            "tab active"
                         } else {
-                            "nav-item"
+                            "tab"
                         };
 
                         rsx! {
                             button {
                                 key: "{section.label()}",
-                                class: item_class,
+                                class: tab_class,
                                 onclick: move |_| app_state.write().select_section(section),
-                                span { class: "nav-label", "{section.label()}" }
+                                span { "{section.label()}" }
                                 if let Some(count) = count {
-                                    span { class: "nav-badge", "{count}" }
+                                    span { class: "tab-badge", "{count}" }
                                 }
                             }
                         }
@@ -57,19 +58,21 @@ pub fn Sidebar(state: DashboardStateResponse, active: Section, stale: Option<Str
                 }
             }
 
-            div { class: "sidebar-foot",
-                div { "up {uptime}" }
-                div { "{state.bind_addr}" }
+            div { class: "topbar-spacer" }
+
+            div { class: "topbar-meta",
                 if let Some(err) = stale {
-                    div { class: "stale", title: "{err}", "stale — reconnecting" }
+                    span { class: "stale", title: "{err}", "stale — reconnecting" }
                 }
+                span { "up {uptime}" }
+                span { "{state.bind_addr}" }
             }
         }
     }
 }
 
-/// The number next to a menu item — how much is behind it right now. A section
-/// with nothing to count (or nothing in it) shows no badge rather than a `0`.
+/// The number next to a tab — how much is behind it right now. A tab with
+/// nothing to count shows no badge rather than a `0`.
 fn badge_count(
     state: &DashboardStateResponse,
     section: Section,
